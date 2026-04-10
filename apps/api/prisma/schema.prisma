@@ -45,6 +45,7 @@ model Course {
   description String?
   imageUrl    String?
   difficulty  String   @default("Beginner")
+  visibility  String   @default("Private Draft")
   createdAt   DateTime @default(now())
   
   modules     Module[]
