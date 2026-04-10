@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '../lib/auth-context';
-import { api } from '../lib/api';
+import { useAuth } from '../../lib/auth-context';
+import { api } from '../../lib/api';
 
 export default function LoginPage() {
   const { login } = useAuth();

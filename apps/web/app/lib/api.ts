@@ -32,11 +32,20 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
 
-  signup: (name: string, email: string, password: string, role?: string) =>
-    apiFetch<{ access_token: string; user: any }>('/auth/signup', {
+  signup: (name: string, email: string, password: string, role?: string) => {
+    const [firstName, ...lastNameParts] = name.split(' ');
+    const lastName = lastNameParts.join(' ');
+    return apiFetch<{ access_token: string; user: any }>('/auth/signup', {
       method: 'POST',
-      body: JSON.stringify({ name, email, password, role }),
-    }),
+      body: JSON.stringify({
+        firstName,
+        lastName: lastName || undefined,
+        email,
+        password,
+        role: role === 'ADMIN' ? 'PLATFORM_ADMIN' : 'USER'
+      }),
+    });
+  },
 
   // Courses
   getCourses: () => apiFetch<any[]>('/courses'),

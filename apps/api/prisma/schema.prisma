@@ -6,143 +6,1084 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  
-  enrollments   CourseEnrollment[]
-  quizAttempts  QuizAttempt[]
-  studySessions StudySession[]
+///////////////////////////////////////////////////////////////
+// ENUMS
+///////////////////////////////////////////////////////////////
+
+enum OrganizationType {
+  PLATFORM
+  COMPANY
 }
 
-enum Role { 
-  ADMIN 
-  USER 
+enum GlobalUserRole {
+  PLATFORM_ADMIN
+  USER
+}
+
+enum MembershipRole {
+  ORG_ADMIN
+  MANAGER
+  MENTOR
+  LEARNER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INACTIVE
+  INVITED
+  REMOVED
+}
+
+enum EmployeeType {
+  INTERN
+  FRESHER
+  EXPERIENCED
+  PROFESSIONAL
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum EnrollmentSource {
+  SELF_PURCHASED
+  FREE_ENROLLMENT
+  ADMIN_ASSIGNED
+  RULE_BASED
+  ORG_LICENSED
+  MANUAL_GRANT
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  EXPIRED
+  CANCELLED
+  ARCHIVED
+}
+
+enum AssignmentTargetType {
+  USER
+  EMPLOYEE_TYPE
+  JOB_ROLE
+  DEPARTMENT
+  ORGANIZATION
+}
+
+enum CourseVisibility {
+  PUBLIC_CATALOG
+  LICENSED_ONLY
+  ORG_PRIVATE
+  PRIVATE_DRAFT
+}
+
+enum MaterialType {
+  PDF
+  DOC
+  DOCX
+  PPT
+  PPTX
+  URL
+  TEXT
+  VIDEO
+}
+
+enum MaterialStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ChunkType {
+  PAGE
+  SECTION
+  TOPIC
+  PARAGRAPH
+}
+
+enum TopicProgressStatus {
+  NOT_STARTED
+  SELF_STUDY
+  QUIZ_IN_PROGRESS
+  REMEDIATION
+  PASSED
+  FAILED
+  ESCALATED
+  COMPLETED
+}
+
+enum StudyPhase {
+  SELF_STUDY
+  QUIZ
+  REMEDIATION
+  CHAT
+}
+
+enum AttemptStatus {
+  STARTED
+  SUBMITTED
+  PASSED
+  FAILED
+  ABANDONED
+}
+
+enum QuestionStatus {
+  DRAFT
+  VALIDATED
+  REJECTED
+  ACTIVE
+  RETIRED
+}
+
+enum QuestionType {
+  MCQ_SINGLE
+  MCQ_MULTI
+}
+
+enum GenerationStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum ValidationStatus {
+  PENDING
+  PASSED
+  FAILED
+  NEEDS_REVIEW
+}
+
+enum ValidatorType {
+  AI
+  HUMAN
+  SYSTEM
+}
+
+enum RemediationType {
+  AI_CHAT
+  MENTOR_HELP
+  SELF_REVIEW
+}
+
+enum RemediationStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+  ESCALATED
+}
+
+enum ChatActorType {
+  USER
+  AI
+  MENTOR
+  SYSTEM
+}
+
+enum EscalationStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  CLOSED
+}
+
+enum MentorReviewDecision {
+  APPROVED
+  REASSIGN
+  RETRY
+  FAIL
+}
+
+enum AuditActorType {
+  USER
+  SYSTEM
+}
+
+enum PricingType {
+  FREE
+  ONE_TIME
+  SUBSCRIPTION_INCLUDED
+  ENTERPRISE_LICENSE
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+///////////////////////////////////////////////////////////////
+// USERS / ORGANIZATIONS / MEMBERSHIPS
+///////////////////////////////////////////////////////////////
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  passwordHash String?        @map("password_hash")
+  firstName    String         @map("first_name")
+  lastName     String?        @map("last_name")
+  globalRole   GlobalUserRole @default(USER) @map("global_role")
+  status       UserStatus     @default(ACTIVE)
+  emailVerified Boolean        @default(false) @map("email_verified")
+  lastLoginAt  DateTime?      @map("last_login_at")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  profile           LearnerProfile?
+  memberships       OrganizationMembership[]
+  createdCourses    Course[]                 @relation("CreatedBy")
+  publishedVersions CourseVersion[]          @relation("PublishedBy")
+  materials         Material[]               @relation("CreatedBy")
+  uploadedMaterials MaterialVersion[]        @relation("UploadedBy")
+  orders            Order[]
+  enrollments       CourseEnrollment[]
+  enrolledBy        CourseEnrollment[]       @relation("EnrolledBy")
+  topicProgress     LearnerTopicProgress[]
+  genJobs           QuestionGenerationJob[]  @relation("RequestedBy")
+  validatedQuestions Question[]              @relation("ValidatedBy")
+  questionValidations QuestionValidation[]
+  chatThreads       ChatThreads[]
+  chatMessages      ChatMessages[]           @relation("ActorUser")
+  escalationsAssigned Escalation[]           @relation("AssignedTo")
+  escalationsCreated Escalation[]            @relation("CreatedBy")
+  mentorReviews     MentorReview[]           @relation("MentorUser")
+  learnerReviews    MentorReview[]           @relation("LearnerUser")
+  auditLogs         AuditLog[]               @relation("ActorUser")
+
+  @@map("users")
+}
+
+model LearnerProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique @map("user_id")
+  user              User     @relation(fields: [userId], references: [id])
+  phone             String?
+  location          String?
+  yearsOfExperience Float    @default(0) @map("years_of_experience")
+  skillTags         String?  @map("skill_tags")
+  profileCompleted  Boolean  @default(false) @map("profile_completed")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("learner_profiles")
+}
+
+model Organization {
+  id        String           @id @default(uuid())
+  name      String
+  code      String?          @unique
+  type      OrganizationType @default(COMPANY)
+  isActive  Boolean          @default(true) @map("is_active")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  memberships   OrganizationMembership[]
+  departments   Department[]
+  jobRoles      JobRole[]
+  invitations   Invitation[]
+  subscription  OrganizationSubscription?
+  courses       Course[]
+  materials     Material[]
+  enrollments   CourseEnrollment[]
+  assignmentRules CourseAssignmentRule[]
+  chatThreads   ChatThreads[]
+  auditLogs     AuditLog[]
+
+  @@map("organizations")
+}
+
+model OrganizationMembership {
+  id             String           @id @default(uuid())
+  organizationId String           @map("organization_id")
+  organization   Organization     @relation(fields: [organizationId], references: [id])
+  userId         String           @map("user_id")
+  user           User             @relation(fields: [userId], references: [id])
+  role           MembershipRole
+  status         MembershipStatus @default(ACTIVE)
+  joinedAt       DateTime?        @map("joined_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  employeeProfile  EmployeeProfile?
+  managedEmployees EmployeeProfile[] @relation("ManagerMembership")
+  mentoredEmployees EmployeeProfile[] @relation("MentorMembership")
+  sentInvitations  Invitation[]      @relation("InvitedBy")
+  createdRules     CourseAssignmentRule[]
+  courseEnrollments CourseEnrollment[]
+
+  @@unique([organizationId, userId])
+  @@map("organization_memberships")
+}
+
+model Department {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String
+  code           String?
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  employees EmployeeProfile[]
+
+  @@unique([organizationId, name])
+  @@map("departments")
+}
+
+model JobRole {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  name           String
+  code           String?
+  description    String?
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  employees EmployeeProfile[]
+
+  @@unique([organizationId, name])
+  @@map("job_roles")
+}
+
+model EmployeeProfile {
+  id                       String                 @id @default(uuid())
+  organizationMembershipId String                 @unique @map("organization_membership_id")
+  membership               OrganizationMembership @relation(fields: [organizationMembershipId], references: [id])
+  employeeId               String?                @map("employee_id")
+  employeeType             EmployeeType?          @map("employee_type")
+  departmentId             String?                @map("department_id")
+  department               Department?            @relation(fields: [departmentId], references: [id])
+  jobRoleId                String?                @map("job_role_id")
+  jobRole                  JobRole?               @relation(fields: [jobRoleId], references: [id])
+  managerMembershipId      String?                @map("manager_membership_id")
+  manager                  OrganizationMembership? @relation("ManagerMembership", fields: [managerMembershipId], references: [id])
+  mentorMembershipId       String?                @map("mentor_membership_id")
+  mentor                   OrganizationMembership? @relation("MentorMembership", fields: [mentorMembershipId], references: [id])
+  dateOfJoining            DateTime?              @map("date_of_joining")
+  createdAt                DateTime               @default(now()) @map("created_at")
+  updatedAt                DateTime               @updatedAt @map("updated_at")
+
+  @@map("employee_profiles")
+}
+
+model Invitation {
+  id                      String           @id @default(uuid())
+  organizationId          String           @map("organization_id")
+  organization            Organization     @relation(fields: [organizationId], references: [id])
+  email                   String
+  firstName               String?          @map("first_name")
+  lastName                String?          @map("last_name")
+  intendedMembershipRole  MembershipRole   @default(LEARNER) @map("intended_membership_role")
+  intendedEmployeeType    EmployeeType?    @map("intended_employee_type")
+  invitedByMembershipId   String           @map("invited_by_membership_id")
+  invitedBy               OrganizationMembership @relation("InvitedBy", fields: [invitedByMembershipId], references: [id])
+  token                   String           @unique
+  expiresAt               DateTime         @map("expires_at")
+  acceptedAt              DateTime?        @map("accepted_at")
+  status                  InvitationStatus @default(PENDING)
+  createdAt               DateTime         @default(now()) @map("created_at")
+  updatedAt               DateTime         @updatedAt @map("updated_at")
+
+  @@index([organizationId, email, status])
+  @@map("invitations")
+}
+
+model OrganizationSubscription {
+  id              String             @id @default(uuid())
+  organizationId  String             @unique @map("organization_id")
+  organization    Organization       @relation(fields: [organizationId], references: [id])
+  planName        String             @map("plan_name")
+  billingCycle    BillingCycle       @map("billing_cycle")
+  status          SubscriptionStatus @default(TRIAL)
+  seatLimit       Int?               @map("seat_limit")
+  courseLimit     Int?               @map("course_limit")
+  storageLimitMb  Int?               @map("storage_limit_mb")
+  startedAt       DateTime           @map("started_at")
+  expiresAt       DateTime?          @map("expires_at")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  @@map("organization_subscriptions")
 }
 
 model Course {
-  id          String   @id @default(uuid())
-  title       String
-  description String?  @db.Text
-  imageUrl    String?
-  difficulty  String   @default("Beginner")
-  createdAt   DateTime @default(now())
-  
+  id             String           @id @default(uuid())
+  organizationId String?          @map("organization_id")
+  organization   Organization?    @relation(fields: [organizationId], references: [id])
+  code           String?
+  title          String
+  description    String?
+  visibility     CourseVisibility @default(PUBLIC_CATALOG)
+  pricingType    PricingType      @default(FREE) @map("pricing_type")
+  isMandatory    Boolean          @default(false) @map("is_mandatory")
+  isActive       Boolean          @default(true) @map("is_active")
+  createdByUserId String          @map("created_by_user_id")
+  createdBy      User             @relation("CreatedBy", fields: [createdByUserId], references: [id])
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  versions    CourseVersion[]
+  price       CoursePrice?
+  orderItems  OrderItem[]
+  enrollments CourseEnrollment[]
+  assignmentRules CourseAssignmentRule[]
+  chatThreads ChatThreads[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, title])
+  @@map("courses")
+}
+
+model CourseVersion {
+  id                      String         @id @default(uuid())
+  courseId                String         @map("course_id")
+  course                  Course         @relation(fields: [courseId], references: [id])
+  versionNo               Int            @map("version_no")
+  status                  MaterialStatus @default(DRAFT)
+  passThresholdPercent    Float          @default(80.00) @map("pass_threshold_percent")
+  maxAttemptsPerTopic     Int            @default(3) @map("max_attempts_per_topic")
+  selfStudyDurationMinutes Int           @default(20) @map("self_study_duration_minutes")
+  chatbotEnabled          Boolean        @default(true) @map("chatbot_enabled")
+  explanationAfterAttempt Boolean        @default(true) @map("explanation_after_attempt")
+  publishedByUserId       String?        @map("published_by_user_id")
+  publishedBy             User?          @relation("PublishedBy", fields: [publishedByUserId], references: [id])
+  publishedAt             DateTime?      @map("published_at")
+  createdAt               DateTime       @default(now()) @map("created_at")
+  updatedAt               DateTime       @updatedAt @map("updated_at")
+
   modules     Module[]
   enrollments CourseEnrollment[]
+
+  @@unique([courseId, versionNo])
+  @@map("course_versions")
 }
 
 model Module {
-  id       String  @id @default(uuid())
-  title    String
-  order    Int
-  courseId String
-  course   Course  @relation(fields: [courseId], references: [id])
-  topics   Topic[]
+  id              String        @id @default(uuid())
+  courseVersionId String        @map("course_version_id")
+  courseVersion   CourseVersion @relation(fields: [courseVersionId], references: [id])
+  title           String
+  description     String?
+  sequenceNo      Int           @map("sequence_no")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  topics Topic[]
+  learnerProgress LearnerCourseProgress[] @relation("CurrentModule")
+
+  @@unique([courseVersionId, sequenceNo])
+  @@map("modules")
 }
 
 model Topic {
-  id       String  @id @default(uuid())
-  title    String
-  order    Int
-  moduleId String
-  module   Module  @relation(fields: [moduleId], references: [id])
-  
-  materials     Material[]
-  contentChunks ContentChunk[]
-  questions     Question[]
-  progress      TopicProgress[]
+  id                      String   @id @default(uuid())
+  moduleId                String   @map("module_id")
+  module                  Module   @relation(fields: [moduleId], references: [id])
+  title                   String
+  description             String?
+  sequenceNo              Int      @map("sequence_no")
+  learningObjectives      String?  @map("learning_objectives")
+  passThresholdPercent    Float?   @map("pass_threshold_percent")
+  maxAttempts             Int?     @map("max_attempts")
+  selfStudyDurationMinutes Int?     @map("self_study_duration_minutes")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  topicMaterials  TopicMaterial[]
+  contentChunks   ContentChunk[]
+  topicProgress   LearnerTopicProgress[]
+  genJobs         QuestionGenerationJob[]
+  questions       Question[]
+  chatThreads     ChatThreads[]
+  learnerCourseProgress LearnerCourseProgress[] @relation("CurrentTopic")
+
+  @@unique([moduleId, sequenceNo])
+  @@map("topics")
 }
 
 model Material {
-  id        String @id @default(uuid())
-  filename  String
-  filePath  String
-  mimeType  String
-  topicId   String
-  topic     Topic  @relation(fields: [topicId], references: [id])
+  id              String       @id @default(uuid())
+  organizationId  String?      @map("organization_id")
+  organization    Organization? @relation(fields: [organizationId], references: [id])
+  title           String
+  materialType    MaterialType @map("material_type")
+  description     String?
+  isActive        Boolean      @default(true) @map("is_active")
+  createdByUserId String       @map("created_by_user_id")
+  createdBy       User         @relation("CreatedBy", fields: [createdByUserId], references: [id])
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  versions MaterialVersion[]
+
+  @@map("materials")
+}
+
+model MaterialVersion {
+  id               String         @id @default(uuid())
+  materialId       String         @map("material_id")
+  material         Material       @relation(fields: [materialId], references: [id])
+  versionNo        Int            @map("version_no")
+  fileUrl          String?        @map("file_url")
+  fileName         String?        @map("file_name")
+  mimeType         String?        @map("mime_type")
+  fileSizeBytes    BigInt?        @map("file_size_bytes")
+  checksum         String?
+  extractedText    String?        @map("extracted_text")
+  status           MaterialStatus @default(DRAFT)
+  uploadedByUserId String         @map("uploaded_by_user_id")
+  uploadedBy       User           @relation("UploadedBy", fields: [uploadedByUserId], references: [id])
+  publishedAt      DateTime?      @map("published_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  topicMaterials TopicMaterial[]
+  contentChunks  ContentChunk[]
+  genJobs        QuestionGenerationJob[]
+
+  @@unique([materialId, versionNo])
+  @@map("material_versions")
+}
+
+model TopicMaterial {
+  id                String          @id @default(uuid())
+  topicId           String          @map("topic_id")
+  topic             Topic           @relation(fields: [topicId], references: [id])
+  materialVersionId String          @map("material_version_id")
+  materialVersion   MaterialVersion @relation(fields: [materialVersionId], references: [id])
+  displayOrder      Int             @default(1) @map("display_order")
+  isPrimary         Boolean         @default(true) @map("is_primary")
+  startPage         Int?            @map("start_page")
+  endPage           Int?            @map("end_page")
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  @@unique([topicId, materialVersionId])
+  @@map("topic_materials")
 }
 
 model ContentChunk {
-  id      String @id @default(uuid())
-  content String @db.Text
-  order   Int
-  topicId String
-  topic   Topic  @relation(fields: [topicId], references: [id])
+  id                String          @id @default(uuid())
+  materialVersionId String          @map("material_version_id")
+  materialVersion   MaterialVersion @relation(fields: [materialVersionId], references: [id])
+  topicId           String?         @map("topic_id")
+  topic             Topic?          @relation(fields: [topicId], references: [id])
+  chunkType         ChunkType       @map("chunk_type")
+  chunkIndex        Int             @map("chunk_index")
+  pageNo            Int?            @map("page_no")
+  heading           String?
+  content           String
+  tokenCount        Int?            @map("token_count")
+  embeddingId       String?         @map("embedding_id")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  questionSourceChunks QuestionSourceChunk[]
+  chatMessageCitations ChatMessageCitations[]
+
+  @@unique([materialVersionId, chunkIndex])
+  @@index([topicId])
+  @@map("content_chunks")
+}
+
+model CoursePrice {
+  id        String   @id @default(uuid())
+  courseId  String   @unique @map("course_id")
+  course    Course   @relation(fields: [courseId], references: [id])
+  currency  String   @default("USD")
+  amount    Float    @default(0.00)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("course_prices")
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  userId      String      @map("user_id")
+  user        User        @relation(fields: [userId], references: [id])
+  status      OrderStatus @default(PENDING)
+  currency    String      @default("USD")
+  totalAmount Float       @default(0.00) @map("total_amount")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  orderItems  OrderItem[]
+  payment     Payment?
+  enrollments CourseEnrollment[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String   @map("order_id")
+  order     Order    @relation(fields: [orderId], references: [id])
+  courseId  String   @map("course_id")
+  course    Course   @relation(fields: [courseId], references: [id])
+  unitPrice Float    @default(0.00) @map("unit_price")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([orderId, courseId])
+  @@map("order_items")
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  orderId           String        @unique @map("order_id")
+  order             Order         @relation(fields: [orderId], references: [id])
+  paymentProvider   String?       @map("payment_provider")
+  providerPaymentId String?       @map("provider_payment_id")
+  status            PaymentStatus @default(PENDING)
+  amount            Float         @default(0.00)
+  currency          String        @default("USD")
+  paidAt            DateTime?     @map("paid_at")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  @@map("payments")
+}
+
+model CourseAssignmentRule {
+  id                     String               @id @default(uuid())
+  organizationId         String               @map("organization_id")
+  organization           Organization         @relation(fields: [organizationId], references: [id])
+  courseId               String               @map("course_id")
+  course                 Course               @relation(fields: [courseId], references: [id])
+  targetType             AssignmentTargetType @map("target_type")
+  targetValue            String               @map("target_value")
+  isMandatory            Boolean              @default(true) @map("is_mandatory")
+  isActive               Boolean              @default(true) @map("is_active")
+  createdByMembershipId  String               @map("created_by_membership_id")
+  createdBy              OrganizationMembership @relation(fields: [createdByMembershipId], references: [id])
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  enrollments CourseEnrollment[]
+
+  @@unique([organizationId, courseId, targetType, targetValue])
+  @@map("course_assignment_rules")
 }
 
 model CourseEnrollment {
-  id        String   @id @default(uuid())
-  userId    String
-  courseId   String
-  enrolledAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-  course    Course   @relation(fields: [courseId], references: [id])
-  
-  topicProgress TopicProgress[]
-  @@unique([userId, courseId])
+  id                      String           @id @default(uuid())
+  userId                  String           @map("user_id")
+  user                    User             @relation(fields: [userId], references: [id])
+  organizationId          String?          @map("organization_id")
+  organization            Organization?    @relation(fields: [organizationId], references: [id])
+  organizationMembershipId String?         @map("organization_membership_id")
+  membership              OrganizationMembership? @relation(fields: [organizationMembershipId], references: [id])
+  courseId                String           @map("course_id")
+  course                  Course           @relation(fields: [courseId], references: [id])
+  courseVersionId         String           @map("course_version_id")
+  courseVersion           CourseVersion    @relation(fields: [courseVersionId], references: [id])
+  enrollmentSource        EnrollmentSource @map("enrollment_source")
+  assignmentRuleId        String?          @map("assignment_rule_id")
+  assignmentRule          CourseAssignmentRule? @relation(fields: [assignmentRuleId], references: [id])
+  enrolledByUserId        String?          @map("enrolled_by_user_id")
+  enrolledBy              User?            @relation("EnrolledBy", fields: [enrolledByUserId], references: [id])
+  orderId                 String?          @map("order_id")
+  order                   Order?           @relation(fields: [orderId], references: [id])
+  dueAt                   DateTime?        @map("due_at")
+  accessExpiresAt         DateTime?        @map("access_expires_at")
+  status                  EnrollmentStatus @default(ACTIVE)
+  createdAt               DateTime         @default(now()) @map("created_at")
+  updatedAt               DateTime         @updatedAt @map("updated_at")
+
+  courseProgress LearnerCourseProgress?
+  topicProgress  LearnerTopicProgress[]
+  chatThreads    ChatThreads[]
+
+  @@unique([userId, courseVersionId])
+  @@map("course_enrollments")
 }
 
-model TopicProgress {
-  id           String   @id @default(uuid())
-  enrollmentId String
-  topicId      String
-  status       String   @default("locked") // locked, unlocked, in_progress, completed
-  enrollment   CourseEnrollment @relation(fields: [enrollmentId], references: [id])
-  topic        Topic    @relation(fields: [topicId], references: [id])
-  @@unique([enrollmentId, topicId])
+model LearnerCourseProgress {
+  id                    String           @id @default(uuid())
+  courseEnrollmentId    String           @unique @map("course_enrollment_id")
+  enrollment            CourseEnrollment @relation(fields: [courseEnrollmentId], references: [id])
+  startedAt             DateTime?        @map("started_at")
+  completedAt           DateTime?        @map("completed_at")
+  overallProgressPercent Float           @default(0.00) @map("overall_progress_percent")
+  currentModuleId       String?          @map("current_module_id")
+  currentModule         Module?          @relation("CurrentModule", fields: [currentModuleId], references: [id])
+  currentTopicId        String?          @map("current_topic_id")
+  currentTopic          Topic?           @relation("CurrentTopic", fields: [currentTopicId], references: [id])
+  totalTopics           Int              @default(0) @map("total_topics")
+  topicsCompleted       Int              @default(0) @map("topics_completed")
+  status                EnrollmentStatus @default(ACTIVE)
+  createdAt             DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
+
+  @@map("learner_course_progress")
+}
+
+model LearnerTopicProgress {
+  id                  String               @id @default(uuid())
+  userId              String               @map("user_id")
+  user                User                 @relation(fields: [userId], references: [id])
+  courseEnrollmentId  String               @map("course_enrollment_id")
+  enrollment          CourseEnrollment     @relation(fields: [courseEnrollmentId], references: [id])
+  topicId             String               @map("topic_id")
+  topic               Topic                @relation(fields: [topicId], references: [id])
+  status              TopicProgressStatus  @default(NOT_STARTED)
+  sequenceNo          Int                  @map("sequence_no")
+  selfStudyStartedAt  DateTime?            @map("self_study_started_at")
+  selfStudyCompletedAt DateTime?           @map("self_study_completed_at")
+  selfStudyDurationSeconds Int?            @default(0) @map("self_study_duration_seconds")
+  passedAt            DateTime?            @map("passed_at")
+  completedAt         DateTime?            @map("completed_at")
+  finalScorePercent   Float?               @map("final_score_percent")
+  attemptsUsed        Int                  @default(0) @map("attempts_used")
+  isLocked            Boolean              @default(true) @map("is_locked")
+  unlockedAt          DateTime?            @map("unlocked_at")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+
+  studySessions      StudySession[]
+  quizAttempts       QuizAttempt[]
+  remediationSessions RemediationSession[]
+  escalations        Escalation[]
+
+  @@unique([userId, courseEnrollmentId, topicId])
+  @@map("learner_topic_progress")
 }
 
 model StudySession {
-  id        String   @id @default(uuid())
-  userId    String
-  topicId   String
-  startedAt DateTime @default(now())
-  endedAt   DateTime?
-  duration  Int?     // seconds
-  user      User     @relation(fields: [userId], references: [id])
+  id                      String               @id @default(uuid())
+  learnerTopicProgressId  String               @map("learner_topic_progress_id")
+  progress                LearnerTopicProgress @relation(fields: [learnerTopicProgressId], references: [id])
+  startedAt               DateTime             @map("started_at")
+  endedAt                 DateTime?            @map("ended_at")
+  durationSeconds         Int?                 @default(0) @map("duration_seconds")
+  phase                   StudyPhase
+  createdAt               DateTime             @default(now()) @map("created_at")
+
+  @@map("study_sessions")
+}
+
+model QuestionGenerationJob {
+  id                    String           @id @default(uuid())
+  topicId               String           @map("topic_id")
+  topic                 Topic            @relation(fields: [topicId], references: [id])
+  materialVersionId     String?          @map("material_version_id")
+  materialVersion       MaterialVersion? @relation(fields: [materialVersionId], references: [id])
+  requestedByUserId     String?          @map("requested_by_user_id")
+  requestedBy           User?            @relation("RequestedBy", fields: [requestedByUserId], references: [id])
+  generationStatus      GenerationStatus @default(QUEUED) @map("generation_status")
+  requestedQuestionCount Int             @default(5) @map("requested_question_count")
+  difficultyLevel       String?          @map("difficulty_level")
+  promptVersion         String?          @map("prompt_version")
+  modelName             String?          @map("model_name")
+  errorMessage          String?          @map("error_message")
+  startedAt             DateTime?        @map("started_at")
+  completedAt           DateTime?        @map("completed_at")
+  createdAt             DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
+
+  questions    Question[]
+  quizAttempts QuizAttempt[]
+
+  @@map("question_generation_jobs")
 }
 
 model Question {
-  id       String @id @default(uuid())
-  text     String @db.Text
-  topicId  String
-  topic    Topic  @relation(fields: [topicId], references: [id])
-  options  QuestionOption[]
+  id                String           @id @default(uuid())
+  topicId           String           @map("topic_id")
+  topic             Topic            @relation(fields: [topicId], references: [id])
+  generationJobId   String?          @map("generation_job_id")
+  generationJob     QuestionGenerationJob? @relation(fields: [generationJobId], references: [id])
+  questionType      QuestionType     @default(MCQ_SINGLE) @map("question_type")
+  stem              String
+  explanation       String?
+  difficultyLevel   String?          @map("difficulty_level")
+  bloomLevel        String?          @map("bloom_level")
+  status            QuestionStatus   @default(DRAFT)
+  validationStatus  ValidationStatus @default(PENDING) @map("validation_status")
+  validatedByUserId String?          @map("validated_by_user_id")
+  validatedBy       User?            @relation("ValidatedBy", fields: [validatedByUserId], references: [id])
+  validatedAt       DateTime?        @map("validated_at")
+  isAiGenerated     Boolean          @default(true) @map("is_ai_generated")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  options             QuestionOption[]
+  sourceChunks        QuestionSourceChunk[]
+  validations         QuestionValidation[]
+  quizAttemptQuestions QuizAttemptQuestions[]
+
+  @@map("questions")
 }
 
 model QuestionOption {
-  id         String  @id @default(uuid())
-  text       String  @db.Text
-  isCorrect  Boolean
-  questionId String
-  question   Question @relation(fields: [questionId], references: [id])
+  id           String   @id @default(uuid())
+  questionId   String   @map("question_id")
+  question     Question @relation(fields: [questionId], references: [id])
+  optionLabel  String   @map("option_label")
+  optionText   String   @map("option_text")
+  isCorrect    Boolean  @default(false) @map("is_correct")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  learnerAnswers LearnerAnswers[]
+
+  @@unique([questionId, optionLabel])
+  @@map("question_options")
+}
+
+model QuestionSourceChunk {
+  id             String       @id @default(uuid())
+  questionId     String       @map("question_id")
+  question       Question     @relation(fields: [questionId], references: [id])
+  contentChunkId String       @map("content_chunk_id")
+  contentChunk   ContentChunk @relation(fields: [contentChunkId], references: [id])
+  relevanceScore Float?       @map("relevance_score")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@unique([questionId, contentChunkId])
+  @@map("question_source_chunks")
+}
+
+model QuestionValidation {
+  id               String           @id @default(uuid())
+  questionId       String           @map("question_id")
+  question         Question         @relation(fields: [questionId], references: [id])
+  validatorUserId  String?          @map("validator_user_id")
+  validator        User?            @relation(fields: [validatorUserId], references: [id])
+  validatorType    ValidatorType    @map("validator_type")
+  validationStatus ValidationStatus @map("validation_status")
+  validationNotes  String?          @map("validation_notes")
+  ambiguityScore   Float?           @map("ambiguity_score")
+  groundingScore   Float?           @map("grounding_score")
+  duplicateScore   Float?           @map("duplicate_score")
+  createdAt        DateTime         @default(now()) @map("created_at")
+
+  @@map("question_validations")
 }
 
 model QuizAttempt {
-  id        String   @id @default(uuid())
-  userId    String
-  topicId   String
-  score     Float?
-  passed    Boolean?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-  answers   LearnerAnswer[]
+  id                      String               @id @default(uuid())
+  learnerTopicProgressId  String               @map("learner_topic_progress_id")
+  progress                LearnerTopicProgress @relation(fields: [learnerTopicProgressId], references: [id])
+  attemptNo               Int                  @map("attempt_no")
+  status                  AttemptStatus        @default(STARTED)
+  startedAt               DateTime             @map("started_at")
+  submittedAt             DateTime?            @map("submitted_at")
+  scorePercent            Float?               @map("score_percent")
+  totalQuestions          Int                  @default(5) @map("total_questions")
+  correctAnswers          Int                  @default(0) @map("correct_answers")
+  thresholdPercent        Float                @map("threshold_percent")
+  passed                  Boolean              @default(false)
+  generatedByJobId        String?              @map("generated_by_job_id")
+  generatedByJob          QuestionGenerationJob? @relation(fields: [generatedByJobId], references: [id])
+  createdAt               DateTime             @default(now()) @map("created_at")
+  updatedAt               DateTime             @updatedAt @map("updated_at")
+
+  quizAttemptQuestions QuizAttemptQuestions[]
+  remediationSessions  RemediationSession[]
+  escalations         Escalation[]
+
+  @@unique([learnerTopicProgressId, attemptNo])
+  @@map("quiz_attempts")
 }
 
-model LearnerAnswer {
+model QuizAttemptQuestions {
   id            String      @id @default(uuid())
-  attemptId     String
-  questionId    String
-  selectedOption String
-  isCorrect     Boolean
-  attempt       QuizAttempt @relation(fields: [attemptId], references: [id])
+  quizAttemptId String      @map("quiz_attempt_id")
+  quizAttempt   QuizAttempt @relation(fields: [quizAttemptId], references: [id])
+  questionId    String      @map("question_id")
+  question      Question    @relation(fields: [questionId], references: [id])
+  displayOrder  Int         @map("display_order")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  learnerAnswer LearnerAnswers?
+
+  @@unique([quizAttemptId, questionId])
+  @@unique([quizAttemptId, displayOrder])
+  @@map("quiz_attempt_questions")
+}
+
+model LearnerAnswers {
+  id                     String               @id @default(uuid())
+  quizAttemptQuestionId  String               @unique @map("quiz_attempt_question_id")
+  quizAttemptQuestion    QuizAttemptQuestions @relation(fields: [quizAttemptQuestionId], references: [id])
+  selectedOptionId       String?              @map("selected_option_id")
+  selectedOption         QuestionOption?      @relation(fields: [selectedOptionId], references: [id])
+  isCorrect              Boolean?             @map("is_correct")
+  answeredAt             DateTime?            @map("answered_at")
+  explanationSeen        Boolean              @default(false) @map("explanation_seen")
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  @@map("learner_answers")
+}
+
+model RemediationSession {
+  id                     String               @id @default(uuid())
+  learnerTopicProgressId String               @map("learner_topic_progress_id")
+  progress               LearnerTopicProgress @relation(fields: [learnerTopicProgressId], references: [id])
+  quizAttemptId          String?              @map("quiz_attempt_id")
+  quizAttempt            QuizAttempt?         @relation(fields: [quizAttemptId], references: [id])
+  remediationType        RemediationType      @map("remediation_type")
+  status                 RemediationStatus    @default(OPEN)
+  startedAt              DateTime             @map("started_at")
+  completedAt            DateTime?            @map("completed_at")
+  summary                String?
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  chatThreads ChatThreads[]
+
+  @@map("remediation_sessions")
+}
+
+model ChatThreads {
+  id                   String             @id @default(uuid())
+  organizationId       String?            @map("organization_id")
+  organization         Organization?      @relation(fields: [organizationId], references: [id])
+  userId               String             @map("user_id")
+  user                 User               @relation(fields: [userId], references: [id])
+  courseEnrollmentId   String?            @map("course_enrollment_id")
+  enrollment           CourseEnrollment?  @relation(fields: [courseEnrollmentId], references: [id])
+  courseId             String?            @map("course_id")
+  course               Course?            @relation(fields: [courseId], references: [id])
+  topicId              String?            @map("topic_id")
+  topic                Topic?             @relation(fields: [topicId], references: [id])
+  remediationSessionId String?            @map("remediation_session_id")
+  remediationSession   RemediationSession? @relation(fields: [remediationSessionId], references: [id])
+  provider             String?
+  providerThreadId     String?            @map("provider_thread_id")
+  modelName            String?            @map("model_name")
+  title                String?
+  isActive             Boolean            @default(true) @map("is_active")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  messages ChatMessages[]
+
+  @@map("chat_threads")
+}
+
+model ChatMessages {
+  id           String        @id @default(uuid())
+  chatThreadId String        @map("chat_thread_id")
+  thread       ChatThreads   @relation(fields: [chatThreadId], references: [id])
+  actorType    ChatActorType @map("actor_type")
+  actorUserId  String?       @map("actor_user_id")
+  actorUser    User?         @relation("ActorUser", fields: [actorUserId], references: [id])
+  messageText  String        @map("message_text")
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  citations ChatMessageCitations[]
+
+  @@map("chat_messages")
+}
+
+model ChatMessageCitations {
+  id             String       @id @default(uuid())
+  chatMessageId  String       @map("chat_message_id")
+  message        ChatMessages @relation(fields: [chatMessageId], references: [id])
+  contentChunkId String       @map("content_chunk_id")
+  contentChunk   ContentChunk @relation(fields: [contentChunkId], references: [id])
+  citationOrder  Int          @default(1) @map("citation_order")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@unique([chatMessageId, contentChunkId])
+  @@map("chat_message_citations")
+}
+
+model Escalation {
+  id                     String               @id @default(uuid())
+  learnerTopicProgressId String               @map("learner_topic_progress_id")
+  progress               LearnerTopicProgress @relation(fields: [learnerTopicProgressId], references: [id])
+  quizAttemptId          String?              @map("quiz_attempt_id")
+  quizAttempt            QuizAttempt?         @relation(fields: [quizAttemptId], references: [id])
+  assignedToUserId       String?              @map("assigned_to_user_id")
+  assignedTo             User?                @relation("AssignedTo", fields: [assignedToUserId], references: [id])
+  escalationReason       String               @map("escalation_reason")
+  status                 EscalationStatus     @default(OPEN)
+  createdByType          AuditActorType       @map("created_by_type")
+  createdByUserId        String?              @map("created_by_user_id")
+  createdBy              User?                @relation("CreatedBy", fields: [createdByUserId], references: [id])
+  createdAt              DateTime             @default(now()) @map("created_at")
+  updatedAt              DateTime             @updatedAt @map("updated_at")
+
+  mentorReview MentorReview?
+
+  @@map("escalations")
+}
+
+model MentorReview {
+  id           String                @id @default(uuid())
+  escalationId String                @unique @map("escalation_id")
+  escalation   Escalation            @relation(fields: [escalationId], references: [id])
+  mentorUserId String                @map("mentor_user_id")
+  mentor       User                  @relation("MentorUser", fields: [mentorUserId], references: [id])
+  learnerUserId String               @map("learner_user_id")
+  learner      User                  @relation("LearnerUser", fields: [learnerUserId], references: [id])
+  notes        String?
+  decision     MentorReviewDecision
+  reviewedAt   DateTime              @map("reviewed_at")
+  createdAt    DateTime              @default(now()) @map("created_at")
+
+  @@map("mentor_reviews")
+}
+
+model AuditLog {
+  id             String         @id @default(uuid())
+  organizationId String?        @map("organization_id")
+  organization   Organization?  @relation(fields: [organizationId], references: [id])
+  actorType      AuditActorType @map("actor_type")
+  actorUserId    String?        @map("actor_user_id")
+  actorUser      User?          @relation("ActorUser", fields: [actorUserId], references: [id])
+  entityType     String         @map("entity_type")
+  entityId       String         @map("entity_id")
+  action         String
+  oldValues      String?        @map("old_values")
+  newValues      String?        @map("new_values")
+  ipAddress      String?        @map("ip_address")
+  userAgent      String?        @map("user_agent")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  @@index([organizationId, entityType, entityId])
+  @@map("audit_logs")
 }

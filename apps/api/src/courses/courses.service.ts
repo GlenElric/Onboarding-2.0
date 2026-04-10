@@ -6,23 +6,42 @@ export class CoursesService {
   constructor(private prisma: PrismaService) {}
 
   async findAll() {
-    return this.prisma.course.findMany({
+    // Return courses with their latest published version info
+    const courses = await this.prisma.course.findMany({
       include: {
+        versions: {
+          where: { status: 'PUBLISHED' },
+          orderBy: { versionNo: 'desc' },
+          take: 1,
+          include: {
+            _count: {
+              select: { modules: true },
+            }
+          }
+        },
         _count: {
-          select: { modules: true, enrollments: true },
+          select: { enrollments: true },
         },
       },
     });
+
+    // Flatten for frontend ease if needed, but keeping it structured for now
+    return courses;
   }
 
   async findOne(id: string) {
     const course = await this.prisma.course.findUnique({
       where: { id },
       include: {
-        modules: {
-          orderBy: { order: 'asc' },
+        versions: {
+          orderBy: { versionNo: 'desc' },
           include: {
-            topics: { orderBy: { order: 'asc' } },
+            modules: {
+              orderBy: { sequenceNo: 'asc' },
+              include: {
+                topics: { orderBy: { sequenceNo: 'asc' } },
+              },
+            },
           },
         },
       },
@@ -32,7 +51,12 @@ export class CoursesService {
       throw new NotFoundException(`Course with ID ${id} not found`);
     }
 
-    return course;
+    // Return the latest version by default
+    const latestVersion = course.versions[0];
+    return {
+      ...course,
+      latestVersion,
+    };
   }
 
   async create(data: any) {
@@ -40,30 +64,28 @@ export class CoursesService {
       data: {
         title: data.title,
         description: data.description,
-        imageUrl: data.imageUrl,
-        difficulty: data.difficulty || 'Beginner',
+        createdByUserId: data.userId, // Mandatory in new schema
+        organizationId: data.organizationId,
       },
     });
   }
 
-  async update(id: string, data: any) {
-    return this.prisma.course.update({
-      where: { id },
+  async createVersion(courseId: string, data: any) {
+    return this.prisma.courseVersion.create({
       data: {
-        title: data.title,
-        description: data.description,
-        imageUrl: data.imageUrl,
-        difficulty: data.difficulty,
-      },
+        courseId,
+        versionNo: data.versionNo || 1,
+        status: data.status || 'DRAFT',
+      }
     });
   }
 
-  async addModule(courseId: string, data: any) {
+  async addModule(courseVersionId: string, data: any) {
     return this.prisma.module.create({
       data: {
         title: data.title,
-        order: data.order,
-        courseId,
+        sequenceNo: data.sequenceNo,
+        courseVersionId,
       },
     });
   }
@@ -72,7 +94,7 @@ export class CoursesService {
     return this.prisma.topic.create({
       data: {
         title: data.title,
-        order: data.order,
+        sequenceNo: data.sequenceNo,
         moduleId,
       },
     });
@@ -82,9 +104,9 @@ export class CoursesService {
     const topic = await this.prisma.topic.findUnique({
       where: { id: topicId },
       include: {
-        contentChunks: { orderBy: { order: 'asc' } },
-        materials: true,
-        questions: { include: { options: { select: { id: true, text: true } } } },
+        contentChunks: { orderBy: { chunkIndex: 'asc' } },
+        topicMaterials: { include: { materialVersion: true } },
+        questions: { include: { options: { select: { id: true, optionText: true, optionLabel: true } } } },
       },
     });
     if (!topic) throw new NotFoundException('Topic not found');
@@ -94,21 +116,19 @@ export class CoursesService {
   async getTopicChunks(topicId: string) {
     return this.prisma.contentChunk.findMany({
       where: { topicId },
-      orderBy: { order: 'asc' },
+      orderBy: { chunkIndex: 'asc' },
     });
   }
 
-  async addContentChunk(topicId: string, data: { content: string; order: number }) {
+  async addContentChunk(topicId: string, data: { content: string; chunkIndex: number; materialVersionId: string }) {
     return this.prisma.contentChunk.create({
       data: {
         content: data.content,
-        order: data.order,
+        chunkIndex: data.chunkIndex,
+        chunkType: 'TOPIC', // Default
         topicId,
+        materialVersionId: data.materialVersionId,
       },
     });
-  }
-
-  async deleteContentChunks(topicId: string) {
-    return this.prisma.contentChunk.deleteMany({ where: { topicId } });
   }
 }

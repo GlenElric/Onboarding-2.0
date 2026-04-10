@@ -6,32 +6,55 @@ export class EnrollmentsService {
   constructor(private prisma: PrismaService) {}
 
   async enroll(userId: string, courseId: string) {
-    const existing = await this.prisma.courseEnrollment.findUnique({
-      where: { userId_courseId: { userId, courseId } },
-    });
-    if (existing) throw new ConflictException('Already enrolled');
-
+    // Find the latest published version
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
-      include: { modules: { include: { topics: true } } },
+      include: {
+        versions: {
+          where: { status: 'PUBLISHED' },
+          orderBy: { versionNo: 'desc' },
+          take: 1,
+          include: { modules: { include: { topics: true } } }
+        }
+      },
     });
-    if (!course) throw new NotFoundException('Course not found');
 
-    // Create enrollment and seed all topic progress as "locked"
+    if (!course || course.versions.length === 0) throw new NotFoundException('Course or published version not found');
+    const version = course.versions[0];
+
+    const existing = await this.prisma.courseEnrollment.findUnique({
+      where: { userId_courseVersionId: { userId, courseVersionId: version.id } },
+    });
+    if (existing) throw new ConflictException('Already enrolled in this version');
+
+    // Create enrollment
     const enrollment = await this.prisma.courseEnrollment.create({
-      data: { userId, courseId },
+      data: {
+        userId,
+        courseId,
+        courseVersionId: version.id,
+        enrollmentSource: 'FREE_ENROLLMENT'
+      },
     });
 
-    const allTopics = course.modules.flatMap((m) => m.topics);
+    const allTopics = version.modules
+      .sort((a, b) => a.sequenceNo - b.sequenceNo)
+      .flatMap((m) => m.topics.sort((a, b) => a.sequenceNo - b.sequenceNo));
+
     if (allTopics.length > 0) {
-      // Unlock first topic
-      const [first, ...rest] = allTopics;
-      await this.prisma.topicProgress.createMany({
-        data: [
-          { enrollmentId: enrollment.id, topicId: first.id, status: 'unlocked' },
-          ...rest.map((t) => ({ enrollmentId: enrollment.id, topicId: t.id, status: 'locked' })),
-        ],
-      });
+      // Unlock first topic, others locked by default
+      for (let i = 0; i < allTopics.length; i++) {
+        await this.prisma.learnerTopicProgress.create({
+          data: {
+            userId,
+            courseEnrollmentId: enrollment.id,
+            topicId: allTopics[i].id,
+            status: i === 0 ? 'NOT_STARTED' : 'NOT_STARTED', // Status updated to NOT_STARTED, logic for locked is separate field
+            isLocked: i !== 0,
+            sequenceNo: i + 1,
+          }
+        });
+      }
     }
 
     return enrollment;
@@ -41,22 +64,25 @@ export class EnrollmentsService {
     return this.prisma.courseEnrollment.findMany({
       where: { userId },
       include: {
-        course: { include: { modules: { include: { topics: true } } } },
+        course: true,
+        courseVersion: true,
         topicProgress: true,
       },
     });
   }
 
   async getCourseProgress(userId: string, courseId: string) {
-    const enrollment = await this.prisma.courseEnrollment.findUnique({
-      where: { userId_courseId: { userId, courseId } },
+    const enrollment = await this.prisma.courseEnrollment.findFirst({
+      where: { userId, courseId },
+      orderBy: { createdAt: 'desc' },
       include: {
-        course: {
+        course: true,
+        courseVersion: {
           include: {
             modules: {
-              orderBy: { order: 'asc' },
+              orderBy: { sequenceNo: 'asc' },
               include: {
-                topics: { orderBy: { order: 'asc' } },
+                topics: { orderBy: { sequenceNo: 'asc' } },
               },
             },
           },
@@ -69,36 +95,43 @@ export class EnrollmentsService {
   }
 
   async completeTopicAndUnlockNext(userId: string, topicId: string) {
-    // Find enrollment that contains this topic
     const topic = await this.prisma.topic.findUnique({
       where: { id: topicId },
-      include: { module: { include: { course: true, topics: { orderBy: { order: 'asc' } } } } },
+      include: { module: { include: { courseVersion: true } } }
     });
     if (!topic) throw new NotFoundException('Topic not found');
 
     const enrollment = await this.prisma.courseEnrollment.findUnique({
-      where: { userId_courseId: { userId, courseId: topic.module.courseId } },
+      where: { userId_courseVersionId: { userId, courseVersionId: topic.module.courseVersionId } },
     });
     if (!enrollment) throw new NotFoundException('Not enrolled');
 
     // Mark current topic as completed
-    await this.prisma.topicProgress.updateMany({
-      where: { enrollmentId: enrollment.id, topicId },
-      data: { status: 'completed' },
+    await this.prisma.learnerTopicProgress.update({
+      where: { userId_courseEnrollmentId_topicId: { userId, courseEnrollmentId: enrollment.id, topicId } },
+      data: { status: 'COMPLETED' },
     });
 
-    // Find next topic in same module or next module's first topic
-    const currentModuleTopics = topic.module.topics;
-    const currentIdx = currentModuleTopics.findIndex((t) => t.id === topicId);
-    const nextTopicInModule = currentModuleTopics[currentIdx + 1];
+    // Find next topic by sequence
+    const currentProgress = await this.prisma.learnerTopicProgress.findUnique({
+        where: { userId_courseEnrollmentId_topicId: { userId, courseEnrollmentId: enrollment.id, topicId } }
+    });
 
-    if (nextTopicInModule) {
-      await this.prisma.topicProgress.updateMany({
-        where: { enrollmentId: enrollment.id, topicId: nextTopicInModule.id },
-        data: { status: 'unlocked' },
+    const nextTopicProgress = await this.prisma.learnerTopicProgress.findFirst({
+        where: {
+            courseEnrollmentId: enrollment.id,
+            sequenceNo: { gt: currentProgress!.sequenceNo }
+        },
+        orderBy: { sequenceNo: 'asc' }
+    });
+
+    if (nextTopicProgress) {
+      await this.prisma.learnerTopicProgress.update({
+        where: { id: nextTopicProgress.id },
+        data: { isLocked: false },
       });
     }
 
-    return { message: 'Topic completed', nextTopicId: nextTopicInModule?.id ?? null };
+    return { message: 'Topic completed', nextTopicId: nextTopicProgress?.topicId ?? null };
   }
 }

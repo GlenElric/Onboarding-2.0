@@ -1,251 +1,212 @@
-import './globals.css';
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { api } from './lib/api';
+
+export default function Dashboard() {
+  const [courses, setCourses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getCourses()
+      .then(data => {
+        setCourses(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch courses:', err);
+        setLoading(false);
+      });
+  }, []);
+
   return (
-    <div className="bg-surface font-body text-on-surface min-h-screen">
-      {/* TopNavBar */}
-      <header className="fixed top-0 z-50 w-full bg-white dark:bg-slate-950 flex justify-between items-center h-16 px-8 border-b border-slate-200 dark:border-slate-800 shadow-sm font-headline tracking-tight">
-        <div className="flex items-center gap-8">
-          <span className="text-2xl font-black text-indigo-900 dark:text-indigo-100">Aura Learning</span>
-          <nav className="hidden md:flex gap-6">
-            <a className="text-indigo-900 dark:text-teal-400 border-b-2 border-indigo-900 dark:border-teal-400 pb-1 duration-200 ease-in-out" href="#">Dashboard</a>
-            <a className="text-slate-500 dark:text-slate-400 font-medium hover:text-indigo-700 dark:hover:text-teal-300 transition-colors duration-200 ease-in-out" href="#">Courses</a>
-            <a className="text-slate-500 dark:text-slate-400 font-medium hover:text-indigo-700 dark:hover:text-teal-300 transition-colors duration-200 ease-in-out" href="#">Community</a>
-            <a className="text-slate-500 dark:text-slate-400 font-medium hover:text-indigo-700 dark:hover:text-teal-300 transition-colors duration-200 ease-in-out" href="#">Reports</a>
-          </nav>
-        </div>
-        <div className="flex items-center gap-4">
-          <button className="bg-primary text-on-primary px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition-all">Upgrade Plan</button>
-          <div className="flex gap-2">
-            <span className="material-symbols-outlined text-slate-500 cursor-pointer p-2 hover:bg-surface-container rounded-full">notifications</span>
-            <span className="material-symbols-outlined text-slate-500 cursor-pointer p-2 hover:bg-surface-container rounded-full">help_outline</span>
-          </div>
-          <img alt="User profile" className="w-8 h-8 rounded-full object-cover border border-outline-variant/20" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFF7bLX3RwtUIQjSzezGWJ3TMUqTUu7LbH9gknkeAAK65HGOe7NHIRhS_jt36gkSCcdgoL8J__XujzgzvfNThraBkVqEcfZNy_Vwirm26mpovkJSoS_Zpm632-ICukFwToJzQ0knma3xcJY-oBVKB9QP2EjVG0dOYO-Gpg3zBEtDKoZmwHq3gDSMYkGaCSpjuDC82L1gpCQqOG4B4eLFWE5WePb6jkfiI3fV_sPvIHjZq-hfbcb3uBkWsveURHFCOk7LOSmwOotB4" />
-        </div>
-      </header>
-
-      {/* SideNavBar (Mobile Bottom / Desktop Left) */}
-      <aside className="hidden lg:flex h-screen w-64 fixed left-0 top-0 pt-20 flex-col p-4 gap-2 border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 font-headline text-sm">
-        <div className="mb-8 px-2">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-indigo-900 flex items-center justify-center">
-              <span className="material-symbols-outlined text-white" style={{ fontVariationSettings: "'FILL' 1" }}>auto_stories</span>
-            </div>
-            <div>
-              <div className="text-xl font-bold text-indigo-950 dark:text-white">Cognitive Corp</div>
-              <div className="text-xs text-slate-500">Enterprise Tier</div>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      {/* Navigation */}
+      <nav className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-8">
+            <h1 className="text-2xl font-black text-indigo-600 tracking-tighter">Aura Learning</h1>
+            <div className="hidden md:flex items-center gap-6">
+              {['Dashboard', 'Courses', 'Community', 'Reports'].map((item) => (
+                <span key={item} className={`text-sm font-bold cursor-pointer transition-colors ${item === 'Dashboard' ? 'text-indigo-600' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}>
+                  {item}
+                </span>
+              ))}
             </div>
           </div>
-        </div>
-        <nav className="flex-1 space-y-1">
-          <a className="flex items-center gap-3 px-3 py-2 text-indigo-900 dark:text-teal-300 font-bold bg-white dark:bg-slate-800 rounded-lg shadow-sm transition-all" href="#">
-            <span className="material-symbols-outlined">dashboard</span> Home
-          </a>
-          <a className="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:translate-x-1 transition-all rounded-lg" href="#">
-            <span className="material-symbols-outlined">auto_stories</span> My Learning
-          </a>
-          <a className="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:translate-x-1 transition-all rounded-lg" href="#">
-            <span className="material-symbols-outlined">edit_note</span> Course Builder
-          </a>
-          <a className="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:translate-x-1 transition-all rounded-lg" href="#">
-            <span className="material-symbols-outlined">insights</span> Analytics
-          </a>
-          <a className="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:translate-x-1 transition-all rounded-lg" href="#">
-            <span className="material-symbols-outlined">group</span> Team Management
-          </a>
-          <a className="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 hover:translate-x-1 transition-all rounded-lg" href="#">
-            <span className="material-symbols-outlined">settings</span> Settings
-          </a>
-        </nav>
-        <div className="p-4 bg-indigo-950 rounded-xl mb-4">
-          <p className="text-indigo-200 text-xs mb-3">Stuck on a concept?</p>
-          <button className="w-full bg-secondary-container text-secondary py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-2 hover:opacity-90 transition-all scale-95 active:scale-100">
-            <span className="material-symbols-outlined text-sm">smart_toy</span> Ask AI Tutor
-          </button>
-        </div>
-        <div className="pt-4 border-t border-slate-200">
-          <a className="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:translate-x-1 transition-all" href="#">
-            <span className="material-symbols-outlined">contact_support</span> Support
-          </a>
-          <a className="flex items-center gap-3 px-3 py-2 text-slate-600 dark:text-slate-400 hover:translate-x-1 transition-all" href="#">
-            <span className="material-symbols-outlined">logout</span> Log Out
-          </a>
-        </div>
-      </aside>
-
-      {/* Main Content Area */}
-      <main className="lg:ml-64 pt-24 px-8 pb-12 max-w-7xl mx-auto">
-        {/* Header Section */}
-        <header className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="max-w-2xl">
-            <span className="label-md font-label uppercase tracking-widest text-secondary font-bold mb-2 block">Welcome back, Sarah</span>
-            <h1 className="text-5xl font-headline font-extrabold text-primary tracking-tight leading-tight">Master your focus today.</h1>
-            <p className="text-on-surface-variant mt-4 text-lg max-w-md">You're in the top 5% of learners this week. Your personalized AI learning path is ready for the next module.</p>
-          </div>
-          {/* Quick Stats Panel */}
-          <div className="grid grid-cols-2 gap-4 w-full md:w-auto">
-            <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/10 shadow-sm min-w-[160px]">
-              <div className="flex items-center gap-2 text-secondary mb-2">
-                <span className="material-symbols-outlined">timer</span>
-                <span className="text-xs font-bold uppercase tracking-wider">Total Time</span>
+          <div className="flex items-center gap-4">
+            <span className="hidden lg:block text-xs font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-full">Upgrade Plan</span>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-slate-400 cursor-pointer hover:text-indigo-600 transition-colors">notifications</span>
+              <span className="material-symbols-outlined text-slate-400 cursor-pointer hover:text-indigo-600 transition-colors">help_outline</span>
+              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 p-0.5">
+                <img className="w-full h-full rounded-full object-cover border-2 border-white dark:border-slate-900" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" />
               </div>
-              <div className="text-2xl font-headline font-extrabold text-primary">124h <span className="text-sm font-normal text-on-surface-variant">32m</span></div>
-            </div>
-            <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/10 shadow-sm min-w-[160px]">
-              <div className="flex items-center gap-2 text-teal-600 mb-2">
-                <span className="material-symbols-outlined">star</span>
-                <span className="text-xs font-bold uppercase tracking-wider">Avg Score</span>
-              </div>
-              <div className="text-2xl font-headline font-extrabold text-primary">94.2<span className="text-sm font-normal text-on-surface-variant">%</span></div>
             </div>
           </div>
-        </header>
+        </div>
+      </nav>
 
-        {/* Bento Grid Layout */}
+      <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Main Content (Left Column) */}
-          <div className="lg:col-span-8 space-y-12">
-            {/* Continue Learning Section */}
-            <section>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-headline font-bold text-primary">Continue Learning</h2>
-                <button className="text-secondary font-semibold flex items-center gap-1 hover:gap-2 transition-all">
-                  View Schedule <span className="material-symbols-outlined">arrow_forward</span>
-                </button>
+          {/* Side Nav */}
+          <aside className="lg:col-span-2 space-y-2">
+            {[
+              { icon: 'dashboard', label: 'Home', active: true },
+              { icon: 'auto_stories', label: 'My Learning' },
+              { icon: 'edit_note', label: 'Course Builder' },
+              { icon: 'insights', label: 'Analytics' },
+              { icon: 'group', label: 'Team Management' },
+              { icon: 'settings', label: 'Settings' },
+            ].map((item) => (
+              <div key={item.label} className={`flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all group ${item.active ? 'bg-white dark:bg-slate-900 shadow-sm text-indigo-600' : 'hover:bg-white dark:hover:bg-slate-900 text-slate-500'}`}>
+                <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+                <span className="text-sm font-bold">{item.label}</span>
               </div>
-              <div className="relative group overflow-hidden rounded-2xl bg-primary-container p-8 text-on-primary">
-                <div className="absolute right-0 bottom-0 opacity-10">
-                  <span className="material-symbols-outlined text-[200px]" style={{ fontVariationSettings: "'FILL' 1" }}>psychology</span>
-                </div>
-                <div className="relative z-10">
-                  <div className="flex items-center gap-3 mb-4">
-                    <span className="px-3 py-1 bg-white/20 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-md">Active Module</span>
-                    <span className="text-indigo-200 text-sm italic">45 mins remaining</span>
-                  </div>
-                  <h3 className="text-3xl font-headline font-bold mb-6">Advanced Cognitive Architectures in Neural Networks</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-end text-sm">
-                      <span className="font-medium">Module Completion</span>
-                      <span className="font-bold">78%</span>
-                    </div>
-                    <div className="w-full bg-white/20 h-3 rounded-full overflow-hidden">
-                      <div className="bg-secondary-fixed h-full rounded-full" style={{ width: '78%' }}></div>
-                    </div>
-                    <div className="pt-4 flex gap-4">
-                      <button className="bg-white text-primary px-6 py-3 rounded-lg font-bold flex items-center gap-2 hover:bg-opacity-90 transition-all">
-                        <span className="material-symbols-outlined">play_arrow</span> Resume Lesson
-                      </button>
-                      <button className="bg-transparent border border-white/30 text-white px-6 py-3 rounded-lg font-bold hover:bg-white/10 transition-all">
-                        Lab Materials
-                      </button>
-                    </div>
-                  </div>
+            ))}
+
+            <div className="mt-12 p-4 bg-indigo-600 rounded-2xl text-white relative overflow-hidden group">
+              <div className="absolute -right-4 -bottom-4 opacity-20 transition-transform group-hover:scale-110">
+                <span className="material-symbols-outlined text-8xl">smart_toy</span>
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-2">Stuck on a concept?</p>
+              <h4 className="font-bold text-sm mb-4">Ask AI Tutor</h4>
+              <button className="w-full py-2 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-lg text-xs font-bold transition-all">Start Chat</button>
+            </div>
+
+            <div className="pt-8 border-t border-slate-200 dark:border-slate-800 space-y-1">
+              <div className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-indigo-600 cursor-pointer">
+                <span className="material-symbols-outlined text-[20px]">contact_support</span>
+                <span className="text-sm font-bold">Support</span>
+              </div>
+              <div className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-red-500 cursor-pointer">
+                <span className="material-symbols-outlined text-[20px]">logout</span>
+                <span className="text-sm font-bold">Log Out</span>
+              </div>
+            </div>
+          </aside>
+
+          {/* Main Content */}
+          <div className="lg:col-span-7 space-y-12">
+            {/* Hero Section */}
+            <section className="relative h-96 rounded-3xl overflow-hidden bg-indigo-600 group">
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
+              <div className="absolute -right-20 -top-20 w-80 h-80 bg-white/10 rounded-full blur-3xl transition-transform group-hover:scale-110"></div>
+              <div className="absolute -left-20 -bottom-20 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl transition-transform group-hover:scale-110"></div>
+
+              <div className="relative z-10 h-full p-12 flex flex-col justify-center max-w-2xl">
+                <span className="inline-block px-4 py-1.5 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-white mb-6">AI-Powered Learning Platform</span>
+                <h2 className="text-6xl font-black text-white leading-[1.1] tracking-tighter mb-6">Elevate Your Knowledge with Aura AI.</h2>
+                <p className="text-indigo-100 text-lg font-medium leading-relaxed mb-8">Experience a personalized learning journey driven by advanced AI. Upload your materials and let Aura generate structured courses and quizzes just for you.</p>
+                <div className="flex gap-4">
+                  <button className="px-8 py-4 bg-white text-indigo-600 rounded-xl font-bold hover:shadow-xl transition-all hover:-translate-y-0.5">Get Started</button>
+                  <button className="px-8 py-4 bg-white/10 text-white border border-white/20 backdrop-blur-md rounded-xl font-bold hover:bg-white/20 transition-all">Explore Courses</button>
                 </div>
               </div>
             </section>
+
             {/* My Courses Gallery */}
             <section>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-headline font-bold text-primary">My Courses</h2>
-                <div className="flex gap-2">
-                  <span className="px-4 py-2 bg-surface-container-low text-on-surface-variant rounded-full text-sm font-medium cursor-pointer hover:bg-surface-container transition-all">All</span>
-                  <span className="px-4 py-2 bg-white text-primary font-bold rounded-full text-sm shadow-sm cursor-pointer border border-outline-variant/10">In Progress</span>
-                  <span className="px-4 py-2 bg-surface-container-low text-on-surface-variant rounded-full text-sm font-medium cursor-pointer hover:bg-surface-container transition-all">Completed</span>
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">My Courses</h2>
+                <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
+                  <button className="px-4 py-2 bg-white dark:bg-slate-800 text-indigo-600 shadow-sm rounded-lg text-xs font-bold">In Progress</button>
+                  <button className="px-4 py-2 text-slate-500 text-xs font-bold hover:text-slate-900 dark:hover:text-white transition-colors">Completed</button>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Course Card 1 */}
-                <div className="group bg-surface-container-lowest rounded-2xl p-4 transition-all hover:translate-y-[-4px] hover:shadow-lg border border-outline-variant/5">
-                  <div className="aspect-video rounded-xl overflow-hidden mb-4 relative">
-                    <img alt="Quantum Computing" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCvKXPAa4ts3MFeibTMvkuFqp3llK8kzkn9Uf0RSyxiEaXE5SR6e692X8_mnUzjLeKPX-FFDK8qZZ0IwYj9elHyTXfiHvBy8rz1TP2HaPpA6v1ybtvpmjG-ScjBhrtYOFmvHHDxCFk_cX6nq4KGCckB8JN3c5QWdFMXVTRnCGIBqDBvf1A6-ogPhP2icHRIuywuHiCGtGMH5FyiQkG5GjbaPdG_GtBi4372ckFttlGMEqmBBMTEJZUsQDodT1Y1whNBaMpVkYS2_so" />
-                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur px-2 py-1 rounded text-[10px] font-black uppercase text-primary">AI Certified</div>
-                  </div>
-                  <h4 className="font-headline font-bold text-lg text-primary mb-1">Principles of Quantum Machine Learning</h4>
-                  <div className="flex items-center gap-4 text-xs text-on-surface-variant mb-4">
-                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">schedule</span> 12h Left</span>
-                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">trending_up</span> Advanced</span>
-                  </div>
-                  <div className="w-full bg-surface-container h-1.5 rounded-full mb-4">
-                    <div className="bg-secondary h-full rounded-full" style={{ width: '35%' }}></div>
-                  </div>
+
+              {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="animate-pulse bg-slate-200 dark:bg-slate-800 h-80 rounded-3xl"></div>
+                  ))}
                 </div>
-                {/* Course Card 2 */}
-                <div className="group bg-surface-container-lowest rounded-2xl p-4 transition-all hover:translate-y-[-4px] hover:shadow-lg border border-outline-variant/5">
-                  <div className="aspect-video rounded-xl overflow-hidden mb-4 relative">
-                    <img alt="Cybersecurity" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCQlYEThjM42oE1wXXX9ypPpdcOSFPnO0ccyzGrbtKYnzFScfc82BvXcHcB-Isj5h-y6d4mM8wK-cz8QhrFIU8MipAdRWGivXkNJ2_HWbFZIRZkoxkqWNp83xdFxP7wJ_19LEXBLWYzuvIiR9EgZPuohDXMNcv-sgfWaYESNEBS8HbruVDqYuzs8fMYE4_EnaSZE_uzv-XI7Gqe_GH_7vMRCcqT--GNTuWJDNqpSxN4QrwVWheBBLfRDXyqZeVoYZV6tS3h9-3qgZ8" />
-                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur px-2 py-1 rounded text-[10px] font-black uppercase text-primary">New Updates</div>
-                  </div>
-                  <h4 className="font-headline font-bold text-lg text-primary mb-1">Ethical Hacking: The AI Frontier</h4>
-                  <div className="flex items-center gap-4 text-xs text-on-surface-variant mb-4">
-                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">schedule</span> 8h Left</span>
-                    <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">trending_up</span> Intermediate</span>
-                  </div>
-                  <div className="w-full bg-surface-container h-1.5 rounded-full mb-4">
-                    <div className="bg-secondary h-full rounded-full" style={{ width: '62%' }}></div>
-                  </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {courses.length === 0 && (
+                    <div className="col-span-2 py-20 text-center bg-white dark:bg-slate-900 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                      <span className="material-symbols-outlined text-6xl text-slate-300 mb-4">school</span>
+                      <p className="text-slate-500 font-bold">No courses found. Create one in the Course Builder!</p>
+                    </div>
+                  )}
+                  {courses.map((course) => {
+                    const latestVersion = course.versions?.[0];
+                    return (
+                    <Link key={course.id} href={`/courses/${course.id}`}>
+                      <div className="group bg-white dark:bg-slate-900 rounded-3xl p-5 transition-all hover:translate-y-[-8px] hover:shadow-2xl border border-slate-100 dark:border-slate-800 cursor-pointer overflow-hidden">
+                        <div className="aspect-[16/10] rounded-2xl overflow-hidden mb-6 relative">
+                          <img
+                            alt={course.title}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                            src={course.imageUrl || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&q=80"}
+                          />
+                          <div className="absolute top-4 right-4 bg-indigo-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase text-white shadow-lg">{course.difficulty || 'Intermediate'}</div>
+                        </div>
+                        <h4 className="font-black text-2xl text-slate-900 dark:text-white mb-3 group-hover:text-indigo-600 transition-colors leading-tight">{course.title}</h4>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mb-6 font-medium leading-relaxed">{course.description}</p>
+                        <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-5">
+                          <div className="flex gap-4">
+                            <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
+                              <span className="material-symbols-outlined text-sm text-indigo-500">layers</span> {latestVersion?._count?.modules || 0} Modules
+                            </span>
+                            <span className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
+                              <span className="material-symbols-outlined text-sm text-purple-500">group</span> {course._count?.enrollments || 0} Learners
+                            </span>
+                          </div>
+                          <span className="material-symbols-outlined text-indigo-600 opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-1">arrow_forward</span>
+                        </div>
+                      </div>
+                    </Link>
+                    )
+                  })}
                 </div>
-              </div>
+              )}
             </section>
           </div>
-          {/* Side Sidebar (Right Column) */}
-          <div className="lg:col-span-4 space-y-8">
-            {/* AI Insights Panel */}
-            <div className="glass-panel p-6 rounded-2xl relative overflow-hidden">
-              <div className="absolute -top-12 -right-12 w-32 h-32 bg-secondary-container rounded-full blur-[60px] opacity-50"></div>
+
+          {/* Right Sidebar */}
+          <div className="lg:col-span-3 space-y-8">
+            <div className="p-8 bg-slate-900 rounded-3xl relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl group-hover:bg-indigo-500/30 transition-colors"></div>
               <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-2 h-2 rounded-full bg-tertiary-fixed animate-pulse"></div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-secondary">AI Insights</span>
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">AI Performance Insight</span>
                 </div>
-                <h3 className="font-headline font-bold text-primary mb-3">Study Pattern Alert</h3>
-                <p className="text-sm text-on-surface-variant leading-relaxed mb-4">
-                  Your retention is 20% higher when you study between 8 AM and 10 AM. Would you like to schedule your "Quantum Physics" block for tomorrow morning?
+                <h3 className="text-2xl font-black text-white mb-4 leading-tight">Focus Score: 92%</h3>
+                <p className="text-sm text-slate-400 font-medium leading-relaxed mb-8">
+                  Your comprehension of "Neural Networks" peaked during your 8 AM session yesterday. Consider scheduling intensive topics early.
                 </p>
-                <button className="w-full bg-primary text-on-primary py-3 rounded-lg font-bold text-sm shadow-md hover:translate-y-[-2px] transition-all">
-                  Optimize Schedule
-                </button>
+                <button className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-xs shadow-lg hover:shadow-indigo-500/20 transition-all hover:bg-indigo-500">Optimize Schedule</button>
               </div>
             </div>
-            {/* Recent Activity */}
+
             <section>
-              <h2 className="text-xl font-headline font-bold text-primary mb-6">Recent Activity</h2>
+              <h2 className="text-xl font-black text-slate-900 dark:text-white mb-6 tracking-tight">Recent Activity</h2>
               <div className="space-y-4">
-                {/* Activity Item 1 */}
-                <div className="flex gap-4 p-4 bg-surface-container-low rounded-xl transition-all hover:bg-surface-container-high cursor-pointer">
-                  <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
-                    <span className="material-symbols-outlined text-teal-700" style={{ fontVariationSettings: "'FILL' 1" }}>quiz</span>
+                {[
+                  { icon: 'quiz', color: 'bg-teal-50 text-teal-600', title: 'Quiz Mastery', detail: 'Neural Networks: 98/100', time: '2h ago' },
+                  { icon: 'forum', color: 'bg-indigo-50 text-indigo-600', title: 'Tutor Session', detail: 'Recursive Algorithms', time: '5h ago' },
+                  { icon: 'verified', color: 'bg-purple-50 text-purple-600', title: 'Module Complete', detail: 'Backpropagation', time: 'Yesterday' }
+                ].map((activity, i) => (
+                  <div key={i} className="flex gap-4 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 transition-all hover:shadow-md cursor-pointer group">
+                    <div className={`w-12 h-12 rounded-xl ${activity.color} flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110`}>
+                      <span className="material-symbols-outlined text-[20px]">{activity.icon}</span>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900 dark:text-white">{activity.title}</h4>
+                      <p className="text-xs text-slate-500 font-bold mt-0.5">{activity.detail}</p>
+                      <p className="text-[10px] text-slate-400 font-medium mt-1 uppercase tracking-tighter">{activity.time}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-primary">Completed Quiz: Data Structures</h4>
-                    <p className="text-xs text-on-surface-variant mt-1">Score: 98/100 • 2 hours ago</p>
-                  </div>
-                </div>
-                {/* Activity Item 2 */}
-                <div className="flex gap-4 p-4 bg-surface-container-low rounded-xl transition-all hover:bg-surface-container-high cursor-pointer">
-                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                    <span className="material-symbols-outlined text-indigo-700">forum</span>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-primary">Chat with AI Tutor</h4>
-                    <p className="text-xs text-on-surface-variant mt-1">Topic: Recursive Algorithms • 5 hours ago</p>
-                  </div>
-                </div>
+                ))}
               </div>
-              <button className="w-full mt-4 py-2 text-on-surface-variant text-xs font-semibold hover:text-primary transition-all">
-                Show More Activity
-              </button>
+              <button className="w-full mt-6 py-2 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-indigo-600 transition-all">View Analytics</button>
             </section>
           </div>
         </div>
       </main>
-
-      {/* FAB for AI Tutor */}
-      <button className="fixed bottom-8 right-8 w-16 h-16 bg-primary rounded-full shadow-2xl flex items-center justify-center text-white hover:scale-110 transition-all z-50 group">
-        <span className="material-symbols-outlined text-3xl group-hover:rotate-12 transition-transform">smart_toy</span>
-        <div className="absolute -top-12 right-0 bg-white px-3 py-1 rounded-lg text-xs font-bold text-primary shadow-sm opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap">
-          Ask AI Tutor
-        </div>
-      </button>
     </div>
   );
 }

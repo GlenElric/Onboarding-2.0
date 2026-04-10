@@ -1,145 +1,81 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { api } from '../../../../../lib/api';
-import { useAuth } from '../../../../../lib/auth-context';
-
-interface QuestionOption {
-  id: string;
-  text: string;
-}
-
-interface Question {
-  id: string;
-  text: string;
-  options: QuestionOption[];
-}
-
-interface QuizResult {
-  score: number;
-  passed: boolean;
-  correct: number;
-  total: number;
-  attemptId: string;
-}
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft, Check, ChevronRight, HelpCircle, Timer, Loader2 } from "lucide-react";
+import { api } from "@/app/lib/api";
 
 export default function QuizPage() {
-  const { id: courseId, topicId } = useParams() as { id: string; topicId: string };
-  const { user } = useAuth();
+  const params = useParams();
   const router = useRouter();
+  const { id, topicId } = params;
 
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [answers, setAnswers] = useState<Record<string, string>>({}); // questionId → selectedOptionId
-  const [currentIdx, setCurrentIdx] = useState(0);
+  const [questions, setQuestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<QuizResult | null>(null);
-  const [error, setError] = useState('');
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [isFinished, setIsFinished] = useState(false);
+  const [score, setScore] = useState(0);
 
   useEffect(() => {
-    if (!user) { router.push('/login'); return; }
-    api.getQuiz(topicId)
-      .then(setQuestions)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [topicId, user, router]);
-
-  const selectAnswer = (questionId: string, optionId: string) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: optionId }));
-  };
-
-  const handleSubmit = async () => {
-    const formattedAnswers = Object.entries(answers).map(([questionId, selectedOptionId]) => ({
-      questionId,
-      selectedOptionId,
-    }));
-    if (formattedAnswers.length < questions.length) {
-      setError('Please answer all questions before submitting.');
-      return;
+    if (topicId) {
+      api.getQuiz(topicId as string)
+        .then(data => {
+          setQuestions(data);
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error(err);
+          setLoading(false);
+        });
     }
-    setSubmitting(true);
-    setError('');
-    try {
-      const res = await api.submitQuiz(topicId, formattedAnswers);
-      setResult(res);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setSubmitting(false);
+  }, [topicId]);
+
+  const handleNext = () => {
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+      setSelectedOption(null);
+    } else {
+      setIsFinished(true);
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center">
-        <div className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
-  if (error && !questions.length) {
-    return (
-      <div className="min-h-screen bg-surface flex items-center justify-center flex-col gap-4">
-        <span className="material-symbols-outlined text-5xl text-red-400">error</span>
-        <p className="text-red-500">{error}</p>
-        <button onClick={() => router.back()} className="text-primary font-bold">← Go Back</button>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
       </div>
     );
   }
 
   if (questions.length === 0) {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center flex-col gap-4">
-        <span className="material-symbols-outlined text-5xl text-slate-300">quiz</span>
-        <p className="text-on-surface-variant">No quiz questions available for this topic yet.</p>
-        <button onClick={() => router.back()} className="text-primary font-bold">← Go Back</button>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+        <h2 className="text-2xl font-bold text-slate-900 mb-4">No quiz available for this topic</h2>
+        <Link href={`/courses/${id}/topics/${topicId}`} className="text-indigo-600 font-semibold">
+          Go back
+        </Link>
       </div>
     );
   }
 
-  // Results screen
-  if (result) {
-    const passed = result.passed;
+  if (isFinished) {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center p-6">
-        <div className="bg-white rounded-3xl shadow-xl border border-outline-variant/10 p-10 max-w-md w-full text-center">
-          <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 ${passed ? 'bg-teal-100' : 'bg-red-100'}`}>
-            <span
-              className={`material-symbols-outlined text-5xl ${passed ? 'text-teal-600' : 'text-red-500'}`}
-              style={{ fontVariationSettings: "'FILL' 1" }}
-            >
-              {passed ? 'emoji_events' : 'sentiment_dissatisfied'}
-            </span>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center border border-slate-100">
+          <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Check className="w-10 h-10" />
           </div>
-          <h2 className="text-3xl font-headline font-black text-primary mb-2">
-            {passed ? 'You Passed! 🎉' : 'Not Quite'}
-          </h2>
-          <p className="text-on-surface-variant mb-6">
-            {passed
-              ? 'Great work! You can now move on to the next topic.'
-              : 'Review the material and try again. You need 70% to pass.'}
-          </p>
-          <div className={`text-6xl font-black font-headline mb-2 ${passed ? 'text-teal-600' : 'text-red-500'}`}>
-            {Math.round(result.score)}%
-          </div>
-          <p className="text-on-surface-variant text-sm mb-8">
-            {result.correct} / {result.total} correct
-          </p>
-          <div className="flex gap-3 flex-col">
-            {passed && (
-              <button
-                onClick={() => router.push(`/courses/${courseId}/topics/${topicId}`)}
-                className="w-full bg-primary text-on-primary py-3 rounded-xl font-bold hover:opacity-90 transition-all"
-              >
-                Back to Topic
-              </button>
-            )}
+          <h2 className="text-3xl font-bold text-slate-900 mb-2">Quiz Completed!</h2>
+          <p className="text-slate-500 mb-8">Verification complete. Results will be saved to your profile.</p>
+
+          <div className="space-y-3">
             <button
-              onClick={() => { setResult(null); setAnswers({}); setCurrentIdx(0); }}
-              className="w-full border border-primary text-primary py-3 rounded-xl font-bold hover:bg-surface-container-low transition-all"
+              onClick={() => router.push(`/courses/${id}`)}
+              className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
             >
-              {passed ? 'Retake Quiz' : 'Try Again'}
+              Continue to Next Topic
             </button>
           </div>
         </div>
@@ -147,105 +83,94 @@ export default function QuizPage() {
     );
   }
 
-  const currentQuestion = questions[currentIdx];
-  const progress = ((currentIdx + 1) / questions.length) * 100;
+  const question = questions[currentQuestion];
 
   return (
-    <div className="min-h-screen bg-surface font-body">
-      <div className="max-w-3xl mx-auto px-6 py-10">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <button onClick={() => router.back()} className="flex items-center gap-1 text-on-surface-variant hover:text-primary transition-colors text-sm">
-            <span className="material-symbols-outlined text-sm">arrow_back</span> Exit Quiz
-          </button>
-          <span className="text-sm text-on-surface-variant font-medium">
-            Question {currentIdx + 1} of {questions.length}
-          </span>
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          <Link
+            href={`/courses/${id}/topics/${topicId}`}
+            className="flex items-center text-slate-600 hover:text-indigo-600 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            <span className="font-medium text-sm">Exit Quiz</span>
+          </Link>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center text-slate-500 gap-2">
+              <Timer className="w-4 h-4" />
+              <span className="text-sm font-mono font-medium">15:00</span>
+            </div>
+            <div className="h-2 w-32 bg-slate-100 rounded-full overflow-hidden">
+               <div
+                className="h-full bg-indigo-600 transition-all duration-500"
+                style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
+               />
+            </div>
+          </div>
         </div>
+      </header>
 
-        {/* Progress bar */}
-        <div className="w-full bg-surface-container h-2 rounded-full mb-10 overflow-hidden">
-          <div
-            className="bg-primary h-full rounded-full transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        {/* Question */}
-        <div className="bg-white rounded-2xl border border-outline-variant/10 shadow-sm p-8 mb-6">
-          <h2 className="text-xl font-headline font-bold text-primary mb-6">
-            {currentQuestion.text}
-          </h2>
-          <div className="space-y-3">
-            {currentQuestion.options.map((option) => {
-              const selected = answers[currentQuestion.id] === option.id;
-              return (
-                <button
-                  key={option.id}
-                  onClick={() => selectAnswer(currentQuestion.id, option.id)}
-                  className={`w-full text-left px-5 py-4 rounded-xl border-2 transition-all font-medium ${
-                    selected
-                      ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-outline-variant/20 hover:border-primary/40 hover:bg-surface-container-low text-on-surface'
-                  }`}
-                >
-                  {option.text}
-                </button>
-              );
-            })}
+      <main className="max-w-3xl mx-auto px-4 py-12">
+        <div className="mb-8 flex items-center gap-3">
+          <div className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+            Question {currentQuestion + 1} of {questions.length}
           </div>
         </div>
 
-        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+        <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-10 leading-tight">
+          {question.stem}
+        </h1>
 
-        {/* Navigation */}
-        <div className="flex justify-between items-center">
-          <button
-            onClick={() => setCurrentIdx((i) => Math.max(0, i - 1))}
-            disabled={currentIdx === 0}
-            className="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors disabled:opacity-30"
-          >
-            <span className="material-symbols-outlined">arrow_back</span> Previous
-          </button>
-
-          {currentIdx < questions.length - 1 ? (
+        <div className="space-y-4 mb-12">
+          {question.options.map((option: any) => (
             <button
-              onClick={() => setCurrentIdx((i) => i + 1)}
-              disabled={!answers[currentQuestion.id]}
-              className="flex items-center gap-2 bg-primary text-on-primary px-6 py-3 rounded-xl font-bold hover:opacity-90 transition-all disabled:opacity-40"
-            >
-              Next <span className="material-symbols-outlined">arrow_forward</span>
-            </button>
-          ) : (
-            <button
-              id="submit-quiz-btn"
-              onClick={handleSubmit}
-              disabled={submitting || Object.keys(answers).length < questions.length}
-              className="flex items-center gap-2 bg-teal-600 text-white px-6 py-3 rounded-xl font-bold hover:opacity-90 transition-all disabled:opacity-40"
-            >
-              <span className="material-symbols-outlined">check_circle</span>
-              {submitting ? 'Submitting...' : 'Submit Quiz'}
-            </button>
-          )}
-        </div>
-
-        {/* Dot navigation */}
-        <div className="flex justify-center gap-2 mt-8">
-          {questions.map((q, idx) => (
-            <button
-              key={q.id}
-              onClick={() => setCurrentIdx(idx)}
-              className={`w-3 h-3 rounded-full transition-all ${
-                idx === currentIdx
-                  ? 'bg-primary scale-125'
-                  : answers[q.id]
-                  ? 'bg-teal-500'
-                  : 'bg-slate-200'
+              key={option.id}
+              onClick={() => setSelectedOption(option.id)}
+              className={`w-full p-6 rounded-2xl border-2 text-left transition-all duration-200 group flex items-center justify-between ${
+                selectedOption === option.id
+                  ? "border-indigo-600 bg-indigo-50/50 shadow-md"
+                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
               }`}
-            />
+            >
+              <div className="flex items-center gap-4">
+                <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+                    selectedOption === option.id ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-500"
+                }`}>
+                    {option.optionLabel}
+                </span>
+                <span className={`font-semibold ${selectedOption === option.id ? "text-indigo-900" : "text-slate-700"}`}>
+                    {option.optionText}
+                </span>
+              </div>
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                selectedOption === option.id ? "border-indigo-600 bg-indigo-600" : "border-slate-300"
+              }`}>
+                {selectedOption === option.id && <Check className="w-4 h-4 text-white" />}
+              </div>
+            </button>
           ))}
         </div>
-      </div>
+
+        <div className="flex justify-between items-center">
+          <div className="flex items-center text-slate-400 gap-2 text-sm">
+            <HelpCircle className="w-4 h-4" />
+            <span>Need a hint? (AI Tutor available)</span>
+          </div>
+          <button
+            onClick={handleNext}
+            disabled={selectedOption === null}
+            className={`flex items-center gap-2 px-8 py-4 rounded-xl font-bold transition-all ${
+              selectedOption !== null
+                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-0.5"
+                : "bg-slate-200 text-slate-400 cursor-not-allowed"
+            }`}
+          >
+            {currentQuestion === questions.length - 1 ? "Finish Quiz" : "Next Question"}
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      </main>
     </div>
   );
 }

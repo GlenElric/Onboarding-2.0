@@ -23,9 +23,10 @@ export class AuthService {
     const user = await this.prisma.user.create({
       data: {
         email: data.email,
-        password: hashedPassword,
-        name: data.name,
-        role: data.role || 'USER',
+        passwordHash: hashedPassword,
+        firstName: data.name.split(' ')[0] || 'User',
+        lastName: data.name.split(' ').slice(1).join(' ') || '',
+        globalRole: data.role === 'ADMIN' ? 'PLATFORM_ADMIN' : 'USER',
       },
     });
 
@@ -37,7 +38,7 @@ export class AuthService {
       where: { email: data.email },
     });
 
-    if (!user || !(await bcrypt.compare(data.password, user.password))) {
+    if (!user || !user.passwordHash || !(await bcrypt.compare(data.password, user.passwordHash))) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -45,14 +46,14 @@ export class AuthService {
   }
 
   private generateToken(user: any) {
-    const payload = { sub: user.id, email: user.email, role: user.role };
+    const payload = { sub: user.id, email: user.email, role: user.globalRole };
     return {
       access_token: this.jwtService.sign(payload),
       user: {
         id: user.id,
         email: user.email,
-        name: user.name,
-        role: user.role,
+        name: `${user.firstName} ${user.lastName}`.trim(),
+        role: user.globalRole,
       },
     };
   }

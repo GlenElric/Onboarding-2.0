@@ -1,6 +1,8 @@
 import { Controller, Get, Post, Body, Param, Request } from '@nestjs/common';
 import { QuizService } from './quiz.service';
+import { SubmitQuizDto } from './dto/quiz.dto';
 
+import { Public } from "../auth/public.decorator";
 @Controller('quiz')
 export class QuizController {
   constructor(private readonly quizService: QuizService) {}
@@ -13,6 +15,7 @@ export class QuizController {
 
   /** Learner: fetch questions (no correct answers) */
   @Get(':topicId')
+  @Public()
   async getQuiz(@Param('topicId') topicId: string) {
     return this.quizService.getQuizForTopic(topicId);
   }
@@ -21,10 +24,10 @@ export class QuizController {
   @Post(':topicId/submit')
   async submitQuiz(
     @Param('topicId') topicId: string,
-    @Body() body: { answers: Array<{ questionId: string; selectedOptionId: string }> },
+    @Body() dto: SubmitQuizDto,
     @Request() req: any,
   ) {
-    return this.quizService.submitQuiz(req.user.userId, topicId, body.answers);
+    return this.quizService.submitQuiz(req.user.userId, topicId, dto.answers);
   }
 
   /** Learner: get attempt history */
