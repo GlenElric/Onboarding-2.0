@@ -1,0 +1,148 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  
+  enrollments   CourseEnrollment[]
+  quizAttempts  QuizAttempt[]
+  studySessions StudySession[]
+}
+
+enum Role { 
+  ADMIN 
+  USER 
+}
+
+model Course {
+  id          String   @id @default(uuid())
+  title       String
+  description String?  @db.Text
+  imageUrl    String?
+  difficulty  String   @default("Beginner")
+  createdAt   DateTime @default(now())
+  
+  modules     Module[]
+  enrollments CourseEnrollment[]
+}
+
+model Module {
+  id       String  @id @default(uuid())
+  title    String
+  order    Int
+  courseId String
+  course   Course  @relation(fields: [courseId], references: [id])
+  topics   Topic[]
+}
+
+model Topic {
+  id       String  @id @default(uuid())
+  title    String
+  order    Int
+  moduleId String
+  module   Module  @relation(fields: [moduleId], references: [id])
+  
+  materials     Material[]
+  contentChunks ContentChunk[]
+  questions     Question[]
+  progress      TopicProgress[]
+}
+
+model Material {
+  id        String @id @default(uuid())
+  filename  String
+  filePath  String
+  mimeType  String
+  topicId   String
+  topic     Topic  @relation(fields: [topicId], references: [id])
+}
+
+model ContentChunk {
+  id      String @id @default(uuid())
+  content String @db.Text
+  order   Int
+  topicId String
+  topic   Topic  @relation(fields: [topicId], references: [id])
+}
+
+model CourseEnrollment {
+  id        String   @id @default(uuid())
+  userId    String
+  courseId   String
+  enrolledAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id])
+  
+  topicProgress TopicProgress[]
+  @@unique([userId, courseId])
+}
+
+model TopicProgress {
+  id           String   @id @default(uuid())
+  enrollmentId String
+  topicId      String
+  status       String   @default("locked") // locked, unlocked, in_progress, completed
+  enrollment   CourseEnrollment @relation(fields: [enrollmentId], references: [id])
+  topic        Topic    @relation(fields: [topicId], references: [id])
+  @@unique([enrollmentId, topicId])
+}
+
+model StudySession {
+  id        String   @id @default(uuid())
+  userId    String
+  topicId   String
+  startedAt DateTime @default(now())
+  endedAt   DateTime?
+  duration  Int?     // seconds
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Question {
+  id       String @id @default(uuid())
+  text     String @db.Text
+  topicId  String
+  topic    Topic  @relation(fields: [topicId], references: [id])
+  options  QuestionOption[]
+}
+
+model QuestionOption {
+  id         String  @id @default(uuid())
+  text       String  @db.Text
+  isCorrect  Boolean
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+}
+
+model QuizAttempt {
+  id        String   @id @default(uuid())
+  userId    String
+  topicId   String
+  score     Float?
+  passed    Boolean?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  answers   LearnerAnswer[]
+}
+
+model LearnerAnswer {
+  id            String      @id @default(uuid())
+  attemptId     String
+  questionId    String
+  selectedOption String
+  isCorrect     Boolean
+  attempt       QuizAttempt @relation(fields: [attemptId], references: [id])
+}

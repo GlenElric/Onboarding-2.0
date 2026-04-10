@@ -1,0 +1,14 @@
+{
+  "name": "aura-learning",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run start:dev --workspace=apps/api",
+    "dev:ai": "cd apps/ai-service && python -m uvicorn main:app --reload --port 8000",
+    "dev": "npm run dev:web"
+  }
+}

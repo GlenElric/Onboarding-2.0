@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# NestJS build output
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Prisma generated
+# (keep schema.prisma, ignore generated client if needed)

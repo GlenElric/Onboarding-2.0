@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 100 700;
+  src: url(https://fonts.gstatic.com/s/materialsymbolsoutlined/v161/k3kWe63dGa9rr3O52Ek8ySX2r0qy_M2f48GqKzK0XU.woff2) format('woff2');
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(198, 197, 212, 0.15);
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  @apply bg-surface font-body text-on-surface;
+}

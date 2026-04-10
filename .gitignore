@@ -1,0 +1,13 @@
+# Root level
+node_modules/
+.DS_Store
+*.log
+npm-debug.log*
+
+# Environment files — NEVER commit secrets
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
