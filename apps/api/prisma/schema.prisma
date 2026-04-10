@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -18,9 +18,20 @@ model User {
   role      Role     @default(USER)
   createdAt DateTime @default(now())
   
+  profile       LearnerProfile?
   enrollments   CourseEnrollment[]
   quizAttempts  QuizAttempt[]
   studySessions StudySession[]
+}
+
+model LearnerProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  bio       String?
+  interests String?  // Store as comma-separated or JSON string for SQLite
+  goals     String?
+  createdAt DateTime @default(now())
 }
 
 enum Role { 
@@ -31,7 +42,7 @@ enum Role {
 model Course {
   id          String   @id @default(uuid())
   title       String
-  description String?  @db.Text
+  description String?
   imageUrl    String?
   difficulty  String   @default("Beginner")
   createdAt   DateTime @default(now())
@@ -73,7 +84,7 @@ model Material {
 
 model ContentChunk {
   id      String @id @default(uuid())
-  content String @db.Text
+  content String
   order   Int
   topicId String
   topic   Topic  @relation(fields: [topicId], references: [id])
@@ -113,7 +124,7 @@ model StudySession {
 
 model Question {
   id       String @id @default(uuid())
-  text     String @db.Text
+  text     String
   topicId  String
   topic    Topic  @relation(fields: [topicId], references: [id])
   options  QuestionOption[]
@@ -121,7 +132,7 @@ model Question {
 
 model QuestionOption {
   id         String  @id @default(uuid())
-  text       String  @db.Text
+  text       String
   isCorrect  Boolean
   questionId String
   question   Question @relation(fields: [questionId], references: [id])

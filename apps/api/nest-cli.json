@@ -1,11 +1,8 @@
-const { Module } = require('@nestjs/common');
-
-module.exports = {
-  apps: [
-    {
-      name: 'api',
-      script: 'npm run start:dev',
-      cwd: './apps/api',
-    },
-  ],
-};
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "src",
+  "compilerOptions": {
+    "deleteOutDir": true
+  }
+}

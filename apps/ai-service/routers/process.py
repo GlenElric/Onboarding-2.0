@@ -24,20 +24,36 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
     return text
 
 
-def chunk_text(text: str, chunk_size: int = 1500) -> list[str]:
-    words = text.split()
+def chunk_text(text: str, chunk_size: int = 1500, overlap: int = 200) -> list[str]:
+    """
+    Chunks text using a sliding window approach with overlap.
+    chunk_size and overlap are in characters for simpler implementation here.
+    """
     chunks = []
-    current_chunk = []
-    current_len = 0
-    for word in words:
-        current_len += len(word) + 1
-        current_chunk.append(word)
-        if current_len >= chunk_size:
-            chunks.append(" ".join(current_chunk))
-            current_chunk = []
-            current_len = 0
-    if current_chunk:
-        chunks.append(" ".join(current_chunk))
+    if not text:
+        return chunks
+
+    start = 0
+    text_len = len(text)
+
+    while start < text_len:
+        end = start + chunk_size
+
+        # If not the first chunk, try to find a space to break more cleanly
+        if end < text_len:
+            # Look for a space near the end of the chunk
+            last_space = text.rfind(' ', start, end)
+            if last_space != -1 and last_space > start:
+                end = last_space
+
+        chunk = text[start:end].strip()
+        if chunk:
+            chunks.append(chunk)
+
+        start = end - overlap
+        if start >= text_len or end >= text_len:
+            break
+
     return chunks
 
 
