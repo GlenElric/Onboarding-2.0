@@ -39,6 +39,18 @@ npm install
 npm run dev
 ```
 
+## Development Roadmap Status
+
+- [x] **Step 0: Foundation** (Monorepo, Next.js, NestJS, Prisma, SQLite)
+- [x] **Step 1: Identity** (JWT Auth, Role-based access)
+- [x] **Step 2: Course Management** (Courses, Modules, Topics, Material uploads)
+- [x] **Step 3: AI Pipeline** (PDF processing, sliding window chunking)
+- [x] **Step 4: Learning Engine** (Enrollments, Dashboard, Sequential progress)
+- [x] **Step 5: Assessment Engine** (AI Quizzes, Score thresholds, Retry logic)
+- [ ] **Step 6: AI Tutor** (Chatbot remediation - *In Progress*)
+- [ ] **Step 7: B2C Layer** (Stripe payments)
+- [ ] **Step 8: B2B Layer** (Org management, Invitations)
+
 ## Core Features Implemented
 
 - **Learning Engine**: Dynamic course navigation, modules, and topics.
