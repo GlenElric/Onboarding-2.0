@@ -14,7 +14,7 @@ import {
   Star,
   Loader2
 } from "lucide-react";
-import { api } from "@/app/lib/api";
+import { api } from "../../lib/api";
 
 export default function CourseDetailPage() {
   const params = useParams();
