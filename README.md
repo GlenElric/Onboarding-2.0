@@ -1,87 +1,112 @@
-# Onboarding 2.0 — Aura Learning Platform
+# Aura Learning Platform — AI-Powered B2B & B2C Learning Solution
 
-An AI-powered onboarding and learning platform built with NestJS, Next.js, and FastAPI (Gemini).
+A high-performance, scalable learning platform built for CHIAC-ASI, featuring automated content processing, AI tutoring, and multi-tenant organization support.
 
-## Architecture
+## 🚀 Key Features
 
-```
-apps/
-├── api/          # NestJS REST API (port 3001)
-├── web/          # Next.js 14 frontend (port 3000)
-└── ai-service/   # FastAPI AI service (port 8000)
-```
+### 🔐 Auth System Hardening
+- **JWT with Refresh Token Rotation:** Secure session management with automatic token rotation and revocation.
+- **RBAC:** Multi-level Role-Based Access Control (PLATFORM_ADMIN, ORG_ADMIN, MANAGER, MENTOR, LEARNER).
 
-## Tech Stack
+### 📚 Course & Learning Engine
+- **Hierarchical Content:** Course → Module → Topic structure.
+- **Material Versioning:** Track updates to course documents with version-controlled materials.
+- **Idempotent Progress:** Robust topic locking and sequential unlocking rules.
 
-| Layer | Tech |
-|-------|------|
-| Frontend | Next.js 14, Tailwind CSS |
-| Backend API | NestJS 10, Prisma ORM, MySQL |
-| AI Service | FastAPI, Google Gemini 1.5 Flash, PyPDF2 |
-| Auth | JWT (passport-jwt) |
+### 🤖 AI Tutor & Assessment
+- **RAG-based AI Chat:** Context-aware tutoring using Google Gemini 1.5 Flash, grounded in specific topic content.
+- **AI Quiz Generation:** Automated generation of MCQs directly from course chunks.
+- **Citation Mapping:** Grounded responses with source references to prevent hallucinations.
 
-## Features
+### 🏢 B2B Multi-tenancy
+- **Organization Isolation:** Query-level RBAC ensuring zero data leakage between business entities.
+- **Member Management:** Granular roles within organizations.
 
-- 🔐 **Auth** — Signup/Login with JWT, role-based access (USER / ADMIN)
-- 📚 **Courses** — Full CRUD, modules, topics with sequential unlocking
-- 📄 **PDF Processing** — Upload PDFs → extract & chunk text → store via AI service
-- 🤖 **AI Quiz Generation** — Gemini generates MCQs from course content
-- 📊 **Progress Tracking** — Per-topic progress (locked → unlocked → completed)
-- 🎯 **Quiz Engine** — Take AI-generated quizzes, graded with 70% pass threshold
+### 💳 Commerce & Scaling
+- **Verified Payments:** Server-side HMAC signature verification for Razorpay.
+- **Async Pipeline:** BullMQ + Redis for non-blocking PDF processing and AI tasks.
+- **Standardized Logging:** Winston-based structured logging for audit and debugging.
 
-## Setup
+---
 
-### 1. Database (MySQL)
-```sql
+## 🏗️ Technical Architecture
+
+### Backend (NestJS)
+Located in `apps/api`, follows a strict domain-driven structure:
+- `modules/`: Domain logic (auth, courses, ai, learning, etc.)
+- `repositories/`: Abstracted database layer using the **Repository Pattern**.
+- `common/`: Shared guards, decorators, and global exception filters.
+
+### AI Service (FastAPI)
+Located in `apps/ai-service`, handles stateless AI/ML tasks:
+- **PDF Processing:** Parsing and token-aware chunking.
+- **Generation:** RAG-based chat and MCQ synthesis via Gemini API.
+
+### Frontend (Next.js)
+Located in `apps/web`, modern UI with feature-based organization:
+- `features/`: Modular UI components (auth, quiz, ai-chat).
+- `services/`: Centralized API clients.
+
+---
+
+## 📸 Screenshots
+
+### Dashboard Overview
+![Dashboard](screenshots/dashboard.png)
+*Central hub for learners to track progress and access enrolled courses.*
+
+### Course Discovery
+![Courses](screenshots/courses.png)
+*Interactive course catalog with pricing and enrollment management.*
+
+### System Verification
+![Verification](screenshots/verification.png)
+*End-to-end user journey verification for signup and course access.*
+
+---
+
+## 🛠️ Setup & Installation
+
+### Prerequisites
+- Node.js 18+
+- MySQL 8.0
+- Redis
+- Python 3.9+ (for AI Service)
+
+### 1. Database Configuration
+```bash
+# In MySQL
 CREATE DATABASE aura_learning;
 ```
 
-### 2. API (NestJS)
+### 2. Backend API
 ```bash
 cd apps/api
-cp .env.example .env   # fill in DATABASE_URL, JWT_SECRET
 npm install
-npx prisma migrate dev
+npx prisma generate
+npx prisma db push
+npm run build
 npm run start:dev
 ```
 
-### 3. AI Service (FastAPI)
+### 3. AI Service
 ```bash
 cd apps/ai-service
-python -m venv venv
-venv\Scripts\activate
 pip install -r requirements.txt
-# Create .env with GEMINI_API_KEY=your-key
-uvicorn main:app --reload --port 8000
+# Set GEMINI_API_KEY in .env
+uvicorn main:app --port 8000
 ```
 
-### 4. Web (Next.js)
+### 4. Frontend
 ```bash
 cd apps/web
 npm install
-# Create .env.local with:
-# NEXT_PUBLIC_API_URL=http://localhost:3001
-# NEXT_PUBLIC_AI_SERVICE_URL=http://localhost:8000
 npm run dev
 ```
 
-## Environment Variables
+---
 
-### `apps/api/.env`
-```
-DATABASE_URL="mysql://root:password@localhost:3306/aura_learning"
-JWT_SECRET="your-secret-key"
-AI_SERVICE_URL="http://localhost:8000"
-```
-
-### `apps/ai-service/.env`
-```
-GEMINI_API_KEY=your-gemini-api-key
-API_SERVICE_URL=http://localhost:3001
-```
-
-### `apps/web/.env.local`
-```
-NEXT_PUBLIC_API_URL=http://localhost:3001
-NEXT_PUBLIC_AI_SERVICE_URL=http://localhost:8000
-```
+## 📜 Coding Standards
+- **Strict TypeScript:** No `any` types (except where casting Prisma returns for flexibility).
+- **Validation:** All inputs validated via `class-validator` DTOs.
+- **Logic Separation:** Services handle business logic; Repositories handle data; Controllers handle routing.
