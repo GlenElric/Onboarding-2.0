@@ -1,0 +1,11 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { BaseRepository } from './base.repository';
+import { Payment } from '@prisma/client';
+
+@Injectable()
+export class PaymentRepository extends BaseRepository<Payment, any, any> {
+  constructor(prisma: PrismaService) {
+    super(prisma, 'payment');
+  }
+}

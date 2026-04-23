@@ -1,7 +1,8 @@
 import os
-import json
 from fastapi import APIRouter, HTTPException, Query
 import httpx
+from pydantic import BaseModel
+from typing import List, Optional
 import google.generativeai as genai
 from dotenv import load_dotenv
 
@@ -11,95 +12,92 @@ router = APIRouter()
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY", ""))
 
-API_SERVICE_URL = os.getenv("API_SERVICE_URL", "http://localhost:3001")
+class ChatRequest(BaseModel):
+    context: str
+    message: str
 
-QUIZ_PROMPT_TEMPLATE = """
-You are an expert educational quiz generator. Based on the following course content, generate exactly {count} multiple-choice quiz questions.
+@router.post("/chat")
+async def generate_chat(request: ChatRequest):
+    """
+    RAG-based chat using provided context chunks.
+    """
+    if not request.context:
+        return {"answer": "I don't have any specific content for this topic yet. How can I help you generally?", "citations": []}
 
-CONTENT:
-{content}
+    prompt = f"""
+    You are an AI Tutor for the Aura Learning Platform.
+    Use the following content to answer the student's question.
+    If the answer is not in the content, say you don't know based on the material provided, but try to be helpful.
+    Always provide citations if you use specific parts of the text.
 
-Requirements:
-- Each question must test understanding of a key concept from the content
-- Each question must have exactly 4 options
-- Exactly 1 option must be correct
-- Questions should range from basic recall to application-level understanding
-- Keep questions concise and unambiguous
+    CONTENT:
+    {request.context}
 
-Return ONLY a valid JSON array (no markdown, no explanations) in this exact format:
-[
-  {{
-    "text": "Question text here?",
-    "options": [
-      {{"text": "Option A", "isCorrect": false}},
-      {{"text": "Option B", "isCorrect": true}},
-      {{"text": "Option C", "isCorrect": false}},
-      {{"text": "Option D", "isCorrect": false}}
-    ]
-  }}
-]
-"""
+    STUDENT QUESTION:
+    {request.message}
 
+    Provide your response in JSON format:
+    {{
+      "answer": "your response text",
+      "citations": ["list of strings or source indicators"]
+    }}
+    """
+
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    try:
+        response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
+        return response.text
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/quiz")
-async def generate_quiz(
-    topicId: str = Query(..., description="Topic ID to generate quiz for"),
-    questionCount: int = Query(5, description="Number of questions to generate"),
-    token: str = Query(None, description="Bearer token to fetch content chunks"),
-):
+async def generate_quiz(topicId: str = Query(...)):
     """
-    Fetches content chunks for a topic, sends them to Gemini, and returns structured quiz questions.
+    Generate structured MCQs from topic content chunks.
     """
-    content = ""
+    # 1. Fetch chunks from NestJS API
+    API_SERVICE_URL = os.getenv("API_SERVICE_URL", "http://localhost:3001")
 
-    # Fetch content chunks from the NestJS API
-    if token:
+    async with httpx.AsyncClient() as client:
         try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(
-                    f"{API_SERVICE_URL}/courses/topics/{topicId}/chunks",
-                    headers={"Authorization": f"Bearer {token}"},
-                    timeout=15,
-                )
-                if resp.status_code == 200:
-                    chunks = resp.json()
-                    content = "\n\n".join([c.get("content", "") for c in chunks])
-        except Exception:
-            pass
+            # We assume internal communication doesn't always need full JWT for these tasks if secured by VPC
+            # or we could use a service token. For MVP, we'll try to fetch public chunks if allowed.
+            resp = await client.get(f"{API_SERVICE_URL}/courses/topics/{topicId}/chunks")
+            chunks = resp.json()
+            context = "\n\n".join([c['content'] for c in chunks])
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to fetch content from API: {str(e)}")
 
-    if not content:
-        raise HTTPException(
-            status_code=422,
-            detail="No content found for this topic. Please upload a PDF first.",
-        )
+    if not context:
+        raise HTTPException(status_code=400, detail="No content available for this topic to generate a quiz.")
 
-    # Trim to avoid token limits (roughly 4000 words)
-    words = content.split()
-    if len(words) > 4000:
-        content = " ".join(words[:4000])
+    prompt = f"""
+    You are an AI Assessment Generator.
+    Based on the following content, generate 5 Multiple Choice Questions (MCQs).
+    Each question should have 4 options and exactly one correct answer.
 
-    prompt = QUIZ_PROMPT_TEMPLATE.format(count=questionCount, content=content)
+    CONTENT:
+    {context}
 
+    Provide your response in JSON format:
+    {{
+      "questions": [
+        {{
+          "text": "question text",
+          "options": [
+            {{ "text": "option 1", "isCorrect": true }},
+            {{ "text": "option 2", "isCorrect": false }},
+            ...
+          ]
+        }},
+        ...
+      ]
+    }}
+    """
+
+    model = genai.GenerativeModel('gemini-1.5-flash')
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content(prompt)
-        raw = response.text.strip()
-
-        # Strip markdown code fences if present
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-            raw = raw.strip()
-
-        questions = json.loads(raw)
-
-        if not isinstance(questions, list):
-            raise ValueError("Expected a JSON array")
-
-        return {"topicId": topicId, "questions": questions}
-
-    except json.JSONDecodeError as e:
-        raise HTTPException(status_code=500, detail=f"Gemini returned invalid JSON: {str(e)}")
+        response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
+        return response.text
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
