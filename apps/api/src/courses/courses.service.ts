@@ -1,17 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { CourseRepository } from '../../repositories/course.repository';
-import { PrismaService } from '../../prisma/prisma.service';
-import { CreateCourseDto, UpdateCourseDto } from './dto/course.dto';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class CoursesService {
-  constructor(
-    private readonly courseRepository: CourseRepository,
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async findAll() {
-    return this.courseRepository.findMany({
+    return this.prisma.course.findMany({
       include: {
         _count: {
           select: { modules: true, enrollments: true },
@@ -21,7 +16,7 @@ export class CoursesService {
   }
 
   async findOne(id: string) {
-    const course = await this.courseRepository.findUnique({
+    const course = await this.prisma.course.findUnique({
       where: { id },
       include: {
         modules: {
@@ -40,27 +35,25 @@ export class CoursesService {
     return course;
   }
 
-  async create(data: CreateCourseDto) {
-    return this.courseRepository.create({
+  async create(data: any) {
+    return this.prisma.course.create({
       data: {
         title: data.title,
         description: data.description,
         imageUrl: data.imageUrl,
         difficulty: data.difficulty || 'Beginner',
-        price: data.price || 0,
       },
     });
   }
 
-  async update(id: string, data: UpdateCourseDto) {
-    return this.courseRepository.update({
+  async update(id: string, data: any) {
+    return this.prisma.course.update({
       where: { id },
       data: {
         title: data.title,
         description: data.description,
         imageUrl: data.imageUrl,
         difficulty: data.difficulty,
-        price: data.price,
       },
     });
   }
