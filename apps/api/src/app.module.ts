@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_FILTER } from '@nestjs/core';
+<<<<<<< HEAD
+=======
 import { BullModule } from '@nestjs/bullmq';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+>>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -19,6 +22,8 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 @Module({
   imports: [
     PrismaModule,
+<<<<<<< HEAD
+=======
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST || 'localhost',
@@ -29,6 +34,7 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
       ttl: 60000,
       limit: 100,
     }]),
+>>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
     AuthModule,
     UsersModule,
     CoursesModule,

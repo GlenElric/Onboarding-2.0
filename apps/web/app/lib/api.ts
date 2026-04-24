@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:3001';
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -53,10 +53,10 @@ export const api = {
 
   // Enrollments
   enroll: (courseId: string) =>
-    apiFetch<any>(`/enrollments/${courseId}`, { method: 'POST' }),
+    apiFetch<any>(`/enrollments`, { method: 'POST', body: JSON.stringify({ courseId }) }),
   getMyEnrollments: () => apiFetch<any[]>('/enrollments/my'),
   getCourseProgress: (courseId: string) =>
-    apiFetch<any>(`/enrollments/${courseId}/progress`),
+    apiFetch<any>(`/enrollments/course/${courseId}`),
   completeTopic: (topicId: string) =>
     apiFetch<any>(`/enrollments/topics/${topicId}/complete`, { method: 'POST' }),
 
@@ -70,4 +70,8 @@ export const api = {
   getQuizHistory: (topicId: string) => apiFetch<any[]>(`/quiz/${topicId}/history`),
   generateQuiz: (topicId: string) =>
     apiFetch<any>(`/quiz/generate/${topicId}`, { method: 'POST' }),
+
+  // Topics
+  deleteTopic: (topicId: string) =>
+    apiFetch<any>(`/courses/topics/${topicId}`, { method: 'DELETE' }),
 };

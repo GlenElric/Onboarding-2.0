@@ -1,4 +1,8 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+<<<<<<< HEAD
+import { PrismaService } from '../../prisma/prisma.service';
+=======
+>>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
 import { CourseRepository } from '../../repositories/course.repository';
 import { ModuleRepository } from '../../repositories/module.repository';
 import { TopicRepository } from '../../repositories/topic.repository';
@@ -16,6 +20,10 @@ export class CoursesService {
     private readonly topicRepository: TopicRepository,
     private readonly chunkRepository: ContentChunkRepository,
     private readonly materialRepository: MaterialRepository,
+<<<<<<< HEAD
+    private readonly prisma: PrismaService,
+=======
+>>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
   ) {}
 
   async findAll() {
@@ -144,4 +152,36 @@ export class CoursesService {
   async deleteContentChunks(topicId: string) {
     return this.chunkRepository.deleteMany({ where: { topicId } });
   }
+<<<<<<< HEAD
+
+  async deleteTopic(topicId: string) {
+    this.logger.log(`Deleting topic: ${topicId}`);
+    
+    // Manual cascade delete because SQLite doesn't natively cascade all relations
+    // without specific schema configuration that might not be present.
+    await this.prisma.contentChunk.deleteMany({ where: { topicId } });
+    await this.prisma.material.deleteMany({ where: { topicId } });
+    await this.prisma.topicProgress.deleteMany({ where: { topicId } });
+    
+    // Find all questions to delete their options and answers first
+    const questions = await this.prisma.question.findMany({ where: { topicId } });
+    const questionIds = questions.map(q => q.id);
+    
+    if (questionIds.length > 0) {
+      await this.prisma.learnerAnswer.deleteMany({
+        where: { questionId: { in: questionIds } }
+      });
+      await this.prisma.questionOption.deleteMany({
+        where: { questionId: { in: questionIds } }
+      });
+    }
+
+    await this.prisma.quizAttempt.deleteMany({ where: { topicId } });
+    await this.prisma.studySession.deleteMany({ where: { topicId } });
+    await this.prisma.question.deleteMany({ where: { topicId } });
+    
+    return this.prisma.topic.delete({ where: { id: topicId } });
+  }
+=======
+>>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
 }

@@ -7,7 +7,7 @@ interface User {
   id: string;
   email: string;
   name: string;
-  role: 'USER' | 'ADMIN';
+  role: 'USER' | 'PLATFORM_ADMIN';
 }
 
 interface AuthContextType {
@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('user', JSON.stringify(newUser));
     setToken(newToken);
     setUser(newUser);
-    if (newUser.role === 'ADMIN') {
+    if (newUser.role === 'PLATFORM_ADMIN') {
       router.push('/admin/courses');
     } else {
       router.push('/');

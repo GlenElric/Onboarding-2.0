@@ -22,6 +22,18 @@ enum OrgRole {
   LEARNER
 }
 
+enum PlatformRole {
+  PLATFORM_ADMIN
+  USER
+}
+
+enum OrgRole {
+  ORG_ADMIN
+  MANAGER
+  MENTOR
+  LEARNER
+}
+
 model User {
   id            String         @id @default(uuid())
   email         String         @unique

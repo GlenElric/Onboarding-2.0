@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto, UpdateCourseDto } from './dto/course.dto';
 import { CreateModuleDto } from './dto/module.dto';
@@ -54,5 +54,11 @@ export class CoursesController {
   @Post('topics/:topicId/chunks')
   async addChunk(@Param('topicId') topicId: string, @Body() body: CreateChunkDto) {
     return this.coursesService.addContentChunk(topicId, body);
+  }
+
+  @Delete('topics/:topicId')
+  async deleteTopic(@Param('topicId') topicId: string) {
+    await this.coursesService.deleteTopic(topicId);
+    return { message: 'Topic deleted successfully' };
   }
 }
