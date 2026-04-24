@@ -6,8 +6,20 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum PlatformRole {
+  PLATFORM_ADMIN
+  USER
+}
+
+enum OrgRole {
+  ORG_ADMIN
+  MANAGER
+  MENTOR
+  LEARNER
 }
 
 enum PlatformRole {

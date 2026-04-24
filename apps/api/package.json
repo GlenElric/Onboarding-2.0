@@ -25,7 +25,11 @@
     "@nestjs/core": "^11.1.19",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
+<<<<<<< HEAD
     "@nestjs/platform-express": "^11.1.19",
+=======
+    "@nestjs/platform-express": "^10.0.0",
+>>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
     "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^6.19.3",
     "@types/cache-manager": "^4.0.6",
@@ -41,7 +45,10 @@
     "formdata-node": "^6.0.3",
     "ioredis": "^5.10.1",
     "nest-winston": "^1.10.2",
+<<<<<<< HEAD
     "next": "16.2.4",
+=======
+>>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.1.13",

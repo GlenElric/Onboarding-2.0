@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { Injectable, Logger } from '@nestjs/common';
 import { CoursesService } from '../courses/courses.service';
 import axios from 'axios';
@@ -8,6 +9,17 @@ export class ContentService {
   private aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
 
   constructor(
+=======
+import { Injectable } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { CoursesService } from '../courses/courses.service';
+
+@Injectable()
+export class ContentService {
+  constructor(
+    @InjectQueue('content-processing') private contentQueue: Queue,
+>>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
     private coursesService: CoursesService,
   ) {}
 
@@ -18,6 +30,7 @@ export class ContentService {
       mimeType: file.mimetype,
     });
 
+<<<<<<< HEAD
     try {
       const formData = new FormData();
       const blob = new Blob([Buffer.from(file.buffer)]);
@@ -41,5 +54,16 @@ export class ContentService {
       this.logger.error(`Error processing PDF: ${error.message}`);
       return { message: 'Failed to process PDF', materialId: material.id, error: error.message };
     }
+=======
+    await this.contentQueue.add('process-pdf', {
+      topicId,
+      materialId: material.id,
+      fileBuffer: file.buffer,
+      fileName: file.originalname,
+      userId,
+    });
+
+    return { message: 'PDF processing started', materialId: material.id };
+>>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
   }
 }

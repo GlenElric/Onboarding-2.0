@@ -1,5 +1,8 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+<<<<<<< HEAD
 import { PrismaService } from '../../prisma/prisma.service';
+=======
+>>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
 import { CourseRepository } from '../../repositories/course.repository';
 import { ModuleRepository } from '../../repositories/module.repository';
 import { TopicRepository } from '../../repositories/topic.repository';
@@ -17,7 +20,10 @@ export class CoursesService {
     private readonly topicRepository: TopicRepository,
     private readonly chunkRepository: ContentChunkRepository,
     private readonly materialRepository: MaterialRepository,
+<<<<<<< HEAD
     private readonly prisma: PrismaService,
+=======
+>>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
   ) {}
 
   async findAll() {
@@ -146,6 +152,7 @@ export class CoursesService {
   async deleteContentChunks(topicId: string) {
     return this.chunkRepository.deleteMany({ where: { topicId } });
   }
+<<<<<<< HEAD
 
   async deleteTopic(topicId: string) {
     this.logger.log(`Deleting topic: ${topicId}`);
@@ -175,4 +182,6 @@ export class CoursesService {
     
     return this.prisma.topic.delete({ where: { id: topicId } });
   }
+=======
+>>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
 }
