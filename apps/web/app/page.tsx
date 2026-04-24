@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api } from './lib/api';
+import { useAuth } from './lib/auth-context';
 
 export default function Dashboard() {
+  const { user, isLoading: authLoading, logout } = useAuth();
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,14 +43,24 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-6">
-            <span className="hidden lg:block text-[9px] uppercase tracking-[0.2em] font-black text-black border border-black/20 px-4 py-2 rounded-full hover:bg-black hover:text-white transition-all cursor-pointer">Upgrade Plan</span>
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-slate-400 cursor-pointer hover:text-indigo-600 transition-colors">notifications</span>
-              <span className="material-symbols-outlined text-slate-400 cursor-pointer hover:text-indigo-600 transition-colors">help_outline</span>
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 p-0.5">
-                <img className="w-full h-full rounded-full object-cover border-2 border-white dark:border-slate-900" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" />
+            {!authLoading && user ? (
+              <>
+                <span className="hidden lg:block text-[9px] uppercase tracking-[0.2em] font-black text-black border border-black/20 px-4 py-2 rounded-full hover:bg-black hover:text-white transition-all cursor-pointer">Upgrade Plan</span>
+                <div className="flex items-center gap-3">
+                  <span className="material-symbols-outlined text-slate-400 cursor-pointer hover:text-indigo-600 transition-colors">notifications</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">{user.name}</span>
+                  <button onClick={logout} className="text-[9px] font-bold uppercase tracking-widest text-slate-400 hover:text-red-500 transition-colors">Logout</button>
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 p-0.5">
+                    <img className="w-full h-full rounded-full object-cover border-2 border-white dark:border-slate-900" src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`} alt="avatar" />
+                  </div>
+                </div>
+              </>
+            ) : !authLoading ? (
+              <div className="flex items-center gap-3">
+                <Link href="/login" className="text-[9px] uppercase tracking-[0.2em] font-black text-black border border-black/20 px-4 py-2 rounded-full hover:bg-black hover:text-white transition-all">Sign In</Link>
+                <Link href="/signup" className="text-[9px] uppercase tracking-[0.2em] font-black bg-black text-white px-4 py-2 rounded-full hover:bg-black/80 transition-all">Sign Up</Link>
               </div>
-            </div>
+            ) : null}
           </div>
         </div>
       </nav>
@@ -85,10 +97,17 @@ export default function Dashboard() {
                 <span className="material-symbols-outlined text-[20px]">contact_support</span>
                 <span className="text-[10px] uppercase tracking-[0.15em] font-bold">Support</span>
               </div>
-              <Link href="/login" className="flex items-center gap-4 px-5 py-3 text-slate-500 hover:text-black cursor-pointer border border-transparent hover:border-white/40 hover:bg-white/30 rounded-2xl transition-all">
-                <span className="material-symbols-outlined text-[20px]">logout</span>
-                <span className="text-[10px] uppercase tracking-[0.15em] font-bold">Log Out</span>
-              </Link>
+              {user ? (
+                <button onClick={logout} className="flex items-center gap-4 px-5 py-3 text-slate-500 hover:text-black cursor-pointer border border-transparent hover:border-white/40 hover:bg-white/30 rounded-2xl transition-all w-full">
+                  <span className="material-symbols-outlined text-[20px]">logout</span>
+                  <span className="text-[10px] uppercase tracking-[0.15em] font-bold">Log Out</span>
+                </button>
+              ) : (
+                <Link href="/login" className="flex items-center gap-4 px-5 py-3 text-slate-500 hover:text-black cursor-pointer border border-transparent hover:border-white/40 hover:bg-white/30 rounded-2xl transition-all">
+                  <span className="material-symbols-outlined text-[20px]">login</span>
+                  <span className="text-[10px] uppercase tracking-[0.15em] font-bold">Sign In</span>
+                </Link>
+              )}
             </div>
           </aside>
 
@@ -99,13 +118,26 @@ export default function Dashboard() {
               <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent"></div>
               <div className="relative z-10 max-w-2xl">
                 <span className="inline-block px-5 py-2 bg-black text-white rounded-full text-[8px] font-black uppercase tracking-[0.25em] mb-10 shadow-lg">World's First Superintelligence Venture</span>
-                <h2 className="text-5xl md:text-7xl font-semibold text-black leading-[1.05] tracking-tight mb-8">Elevate With<br/><span className="font-light">Chiac-Asi.</span></h2>
-                <p className="text-slate-700 text-sm md:text-base font-medium leading-relaxed mb-12 max-w-lg">Experience ONBOARDING through a truly personalized journey driven by ethereal aesthetics and absolute minimalism.</p>
-                <div className="flex flex-wrap gap-4">
-                  <Link href="/signup" className="px-10 py-5 bg-black text-white rounded-[1.25rem] text-[9px] uppercase tracking-[0.2em] font-black hover:shadow-2xl transition-all hover:-translate-y-1 inline-block text-center shadow-xl">Get Started</Link>
-                  <Link href="/login" className="px-10 py-5 bg-white/40 border border-white/60 text-black hover:bg-white/60 rounded-[1.25rem] text-[9px] uppercase tracking-[0.2em] font-black transition-all inline-block text-center backdrop-blur-md shadow-sm">Sign In</Link>
-                  <Link href="/courses" className="px-10 py-5 bg-transparent border border-black/10 text-black hover:border-black rounded-[1.25rem] text-[9px] uppercase tracking-[0.2em] font-black transition-all inline-block text-center">Explore Courses</Link>
-                </div>
+                {user ? (
+                  <>
+                    <h2 className="text-5xl md:text-7xl font-semibold text-black leading-[1.05] tracking-tight mb-8">Welcome back,<br/><span className="font-light">{user.name}.</span></h2>
+                    <p className="text-slate-700 text-sm md:text-base font-medium leading-relaxed mb-12 max-w-lg">Continue your personalized learning journey driven by ethereal aesthetics and absolute minimalism.</p>
+                    <div className="flex flex-wrap gap-4">
+                      <Link href="/courses" className="px-10 py-5 bg-black text-white rounded-[1.25rem] text-[9px] uppercase tracking-[0.2em] font-black hover:shadow-2xl transition-all hover:-translate-y-1 inline-block text-center shadow-xl">My Courses</Link>
+                      <Link href="/courses" className="px-10 py-5 bg-transparent border border-black/10 text-black hover:border-black rounded-[1.25rem] text-[9px] uppercase tracking-[0.2em] font-black transition-all inline-block text-center">Explore More</Link>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="text-5xl md:text-7xl font-semibold text-black leading-[1.05] tracking-tight mb-8">Elevate With<br/><span className="font-light">Chiac-Asi.</span></h2>
+                    <p className="text-slate-700 text-sm md:text-base font-medium leading-relaxed mb-12 max-w-lg">Experience ONBOARDING through a truly personalized journey driven by ethereal aesthetics and absolute minimalism.</p>
+                    <div className="flex flex-wrap gap-4">
+                      <Link href="/signup" className="px-10 py-5 bg-black text-white rounded-[1.25rem] text-[9px] uppercase tracking-[0.2em] font-black hover:shadow-2xl transition-all hover:-translate-y-1 inline-block text-center shadow-xl">Get Started</Link>
+                      <Link href="/login" className="px-10 py-5 bg-white/40 border border-white/60 text-black hover:bg-white/60 rounded-[1.25rem] text-[9px] uppercase tracking-[0.2em] font-black transition-all inline-block text-center backdrop-blur-md shadow-sm">Sign In</Link>
+                      <Link href="/courses" className="px-10 py-5 bg-transparent border border-black/10 text-black hover:border-black rounded-[1.25rem] text-[9px] uppercase tracking-[0.2em] font-black transition-all inline-block text-center">Explore Courses</Link>
+                    </div>
+                  </>
+                )}
               </div>
             </section>
 
@@ -172,38 +204,38 @@ export default function Dashboard() {
               <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-6">
                   <div className="w-1.5 h-1.5 rounded-full bg-black animate-pulse"></div>
-                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">AI Performance Insight</span>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Your Stats</span>
                 </div>
-                <h3 className="text-3xl font-light text-black mb-4 leading-tight tracking-tight">Focus Score: <span className="font-bold">92%</span></h3>
+                <h3 className="text-3xl font-light text-black mb-4 leading-tight tracking-tight">Courses: <span className="font-bold">{courses.length}</span></h3>
                 <p className="text-xs text-slate-600 font-medium leading-relaxed mb-8 max-w-xs">
-                  Your comprehension of "Neural Networks" peaked during your 8 AM session yesterday. Consider scheduling intensive topics early.
+                  {user ? `You have access to ${courses.length} course${courses.length !== 1 ? 's' : ''} on the platform. Explore and enroll to start learning.` : 'Sign in to track your learning progress and get personalized recommendations.'}
                 </p>
-                <button className="w-full py-4 bg-transparent border border-black/20 text-black hover:border-black shadow-sm rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-all">Optimize Schedule</button>
+                <Link href="/courses" className="block w-full py-4 bg-transparent border border-black/20 text-black hover:border-black shadow-sm rounded-2xl font-bold text-[10px] uppercase tracking-widest transition-all text-center">Browse Courses</Link>
               </div>
             </div>
 
-            <section>
-              <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-black mb-6 mt-2">Recent Activity</h2>
-              <div className="space-y-3">
-                {[
-                  { icon: 'quiz', color: 'bg-black/5 text-black', title: 'Quiz Mastery', detail: 'Neural Networks: 98/100', time: '2h ago' },
-                  { icon: 'forum', color: 'bg-black/5 text-black', title: 'Tutor Session', detail: 'Recursive Algorithms', time: '5h ago' },
-                  { icon: 'verified', color: 'bg-black/5 text-black', title: 'Module Complete', detail: 'Backpropagation', time: 'Yesterday' }
-                ].map((activity, i) => (
-                  <div key={i} className="flex gap-4 p-4 bg-white/30 backdrop-blur-xl rounded-[1.5rem] border border-white/50 transition-all hover:bg-white/50 cursor-pointer group">
-                    <div className={`w-12 h-12 rounded-2xl ${activity.color} flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105 border border-white/50`}>
-                      <span className="material-symbols-outlined text-[18px] opacity-80">{activity.icon}</span>
-                    </div>
-                    <div className="flex flex-col justify-center">
-                      <h4 className="text-[11px] uppercase tracking-widest font-black text-black">{activity.title}</h4>
-                      <p className="text-[10px] text-slate-600 font-bold mt-0.5">{activity.detail}</p>
-                      <p className="text-[8px] text-slate-400 font-bold mt-1 uppercase tracking-[0.2em]">{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button className="w-full mt-8 py-2 text-slate-400 text-[9px] font-black uppercase tracking-[0.2em] hover:text-black transition-all">View Analytics</button>
-            </section>
+            {user && (
+              <section>
+                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-black mb-6 mt-2">Quick Actions</h2>
+                <div className="space-y-3">
+                  {[
+                    { icon: 'auto_stories', title: 'My Learning', detail: 'Continue where you left off', href: '/courses' },
+                    { icon: 'edit_note', title: 'Course Builder', detail: 'Create and manage courses', href: '/admin/courses' },
+                    { icon: 'quiz', title: 'Quizzes', detail: 'Test your knowledge', href: '/courses' },
+                  ].map((action, i) => (
+                    <Link key={i} href={action.href} className="flex gap-4 p-4 bg-white/30 backdrop-blur-xl rounded-[1.5rem] border border-white/50 transition-all hover:bg-white/50 cursor-pointer group">
+                      <div className="w-12 h-12 rounded-2xl bg-black/5 text-black flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105 border border-white/50">
+                        <span className="material-symbols-outlined text-[18px] opacity-80">{action.icon}</span>
+                      </div>
+                      <div className="flex flex-col justify-center">
+                        <h4 className="text-[11px] uppercase tracking-widest font-black text-black">{action.title}</h4>
+                        <p className="text-[10px] text-slate-600 font-bold mt-0.5">{action.detail}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         </div>
       </main>

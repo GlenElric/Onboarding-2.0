@@ -10,18 +10,67 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+enum PlatformRole {
+  PLATFORM_ADMIN
+  USER
+}
+
+enum OrgRole {
+  ORG_ADMIN
+  MANAGER
+  MENTOR
+  LEARNER
+}
+
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password      String
+  name          String
+  role          PlatformRole   @default(USER)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
   profile       LearnerProfile?
   enrollments   CourseEnrollment[]
   quizAttempts  QuizAttempt[]
   studySessions StudySession[]
+  memberships   OrganizationMembership[]
+  refreshTokens RefreshToken[]
+  payments      Payment[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  revokedAt DateTime?
+}
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     OrganizationMembership[]
+  courses     Course[]
+}
+
+model OrganizationMembership {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String
+  role           OrgRole      @default(LEARNER)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, userId])
 }
 
 model LearnerProfile {
@@ -29,27 +78,27 @@ model LearnerProfile {
   userId    String   @unique
   user      User     @relation(fields: [userId], references: [id])
   bio       String?
-  interests String?  // Store as comma-separated or JSON string for SQLite
+  interests String?
   goals     String?
   createdAt DateTime @default(now())
 }
 
-enum Role { 
-  ADMIN 
-  USER 
-}
-
 model Course {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  imageUrl    String?
-  difficulty  String   @default("Beginner")
-  visibility  String   @default("Private Draft")
-  createdAt   DateTime @default(now())
+  id             String   @id @default(uuid())
+  title          String
+  description    String?
+  imageUrl       String?
+  difficulty     String   @default("Beginner")
+  visibility     String   @default("Private Draft")
+  price          Float    @default(0)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
   
-  modules     Module[]
-  enrollments CourseEnrollment[]
+  modules        Module[]
+  enrollments    CourseEnrollment[]
+  payments       Payment[]
 }
 
 model Module {
@@ -79,6 +128,7 @@ model Material {
   filename  String
   filePath  String
   mimeType  String
+  version   Int    @default(1)
   topicId   String
   topic     Topic  @relation(fields: [topicId], references: [id])
 }
@@ -92,12 +142,12 @@ model ContentChunk {
 }
 
 model CourseEnrollment {
-  id        String   @id @default(uuid())
-  userId    String
+  id         String   @id @default(uuid())
+  userId     String
   courseId   String
   enrolledAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-  course    Course   @relation(fields: [courseId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+  course     Course   @relation(fields: [courseId], references: [id])
   
   topicProgress TopicProgress[]
   @@unique([userId, courseId])
@@ -157,4 +207,21 @@ model LearnerAnswer {
   selectedOption String
   isCorrect     Boolean
   attempt       QuizAttempt @relation(fields: [attemptId], references: [id])
+}
+
+model Payment {
+  id              String   @id @default(uuid())
+  userId          String
+  courseId        String
+  amount          Float
+  currency        String   @default("INR")
+  status          String   @default("pending") // pending, completed, failed
+  provider        String   // razorpay, stripe
+  providerOrderId String   @unique
+  providerPaymentId String? @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id])
+  course          Course   @relation(fields: [courseId], references: [id])
 }

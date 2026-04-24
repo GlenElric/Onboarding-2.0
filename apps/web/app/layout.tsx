@@ -3,7 +3,7 @@ import './globals.css';
 import { AuthProvider } from './lib/auth-context';
 
 export const metadata: Metadata = {
-  title: 'Aura Learning | Dashboard',
+  title: 'CHIAC-ASI | Onboarding Platform',
   description: 'AI-powered onboarding and learning platform',
 };
 
