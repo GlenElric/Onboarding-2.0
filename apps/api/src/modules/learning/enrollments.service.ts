@@ -35,6 +35,12 @@ export class EnrollmentsService {
     })) as any;
     if (!course) throw new NotFoundException('Course not found');
 
+    // RBAC check: only Public courses can be self-enrolled
+    if (course.visibility !== 'Public') {
+      this.logger.warn(`User ${userId} tried to self-enroll in private course ${courseId}`);
+      throw new ConflictException('This course requires administrator assignment');
+    }
+
     const enrollment = await this.enrollmentRepository.create({
       data: { userId, courseId },
     });

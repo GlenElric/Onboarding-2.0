@@ -46,6 +46,12 @@ export class CoursesController {
     return this.coursesService.delete(id);
   }
 
+  @Roles(PlatformRole.PLATFORM_ADMIN, PlatformRole.USER)
+  @Post(':id/auto-structure')
+  async autoStructure(@Param('id') id: string, @Body() structure: any) {
+    return this.coursesService.autoStructureCourse(id, structure);
+  }
+
   @Post(':id/modules')
   async addModule(@Param('id') id: string, @Body() data: CreateModuleDto) {
     return this.coursesService.addModule(id, data);

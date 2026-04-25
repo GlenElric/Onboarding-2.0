@@ -4,14 +4,12 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 import PyPDF2
 import io
 import httpx
-import google.generativeai as genai
+import openai
 from dotenv import load_dotenv
 
 load_dotenv()
 
 router = APIRouter()
-
-genai.configure(api_key=os.getenv("GEMINI_API_KEY", ""))
 
 API_SERVICE_URL = os.getenv("API_SERVICE_URL", "http://localhost:3001")
 
@@ -98,3 +96,67 @@ async def process_pdf(
         "chunkCount": len(chunks),
         "preview": chunks[0][:300] if chunks else "",
     }
+
+
+@router.post("/course-structure")
+async def extract_course_structure(
+    file: UploadFile = File(...),
+):
+    """
+    Analyzes a whole PDF and generates a structure of Modules and Topics using gpt-4o-mini.
+    """
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are accepted")
+
+    file_bytes = await file.read()
+    text = extract_text_from_pdf(file_bytes)
+
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="Could not extract text from PDF")
+
+    # Use a large window for structure analysis
+    context = text[:150000]
+
+    prompt = f"""
+    You are a Course Curriculum Architect.
+    Analyze the following text extracted from a course PDF and generate a logical structure for an online course.
+    Group the content into Modules, and each Module should have several Topics.
+    For each topic, provide a brief 'content_summary' that captures the key concepts covered in that topic.
+    This summary will be used to map raw text chunks to the topic later.
+
+    TEXT CONTENT:
+    {context}
+
+    Provide your response in JSON format:
+    {{
+      "modules": [
+        {{
+          "title": "Module Title",
+          "topics": [
+            {{
+              "title": "Topic Title",
+              "content_summary": "Detailed summary of what this topic covers..."
+            }},
+            ...
+          ]
+        }},
+        ...
+      ]
+    }}
+    """
+
+    try:
+        openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            response_format={ "type": "json_object" },
+            messages=[
+                {"role": "system", "content": "You are a specialized Course Architect AI. Always return valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.2
+        )
+        return json.loads(response.choices[0].message.content, strict=False)
+    except Exception as e:
+        print(f"STRUCTURE EXTRACTION ERROR: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate course structure: {str(e)}")

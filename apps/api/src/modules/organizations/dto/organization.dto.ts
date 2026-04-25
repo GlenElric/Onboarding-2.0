@@ -18,3 +18,13 @@ export class AddMemberDto {
   @IsEnum(OrgRole)
   role: OrgRole;
 }
+
+export class AssignCourseDto {
+  @IsString()
+  @IsNotEmpty()
+  courseId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  userId: string;
+}

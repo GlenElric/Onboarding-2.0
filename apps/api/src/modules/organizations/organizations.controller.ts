@@ -1,6 +1,6 @@
 import { Controller, Post, Get, Body, Param, Request } from '@nestjs/common';
 import { OrganizationsService } from './organizations.service';
-import { CreateOrganizationDto, AddMemberDto } from './dto/organization.dto';
+import { CreateOrganizationDto, AddMemberDto, AssignCourseDto } from './dto/organization.dto';
 import { OrgRole } from '@prisma/client';
 
 @Controller('organizations')
@@ -25,5 +25,20 @@ export class OrganizationsController {
   ) {
     await this.organizationsService.checkAccess(req.user.id, id, [OrgRole.ORG_ADMIN, OrgRole.MANAGER]);
     return this.organizationsService.addMember(id, addMemberDto);
+  }
+
+  @Post(':id/courses/assign')
+  async assignCourse(
+    @Param('id') id: string,
+    @Body() data: AssignCourseDto,
+    @Request() req,
+  ) {
+    await this.organizationsService.checkAccess(req.user.id, id, [OrgRole.ORG_ADMIN, OrgRole.MANAGER]);
+    return this.organizationsService.assignCourseToMember(id, data);
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string, @Request() req) {
+    return this.organizationsService.findOne(req.user.id, id);
   }
 }

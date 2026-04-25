@@ -28,6 +28,10 @@ export default function AdminCourseDetailPage() {
   const [quizStatus, setQuizStatus] = useState<Record<string, string>>({});
   const [deletingTopic, setDeletingTopic] = useState<string | null>(null);
 
+  const [processingStructure, setProcessingStructure] = useState(false);
+  const [showStructurePreview, setShowStructurePreview] = useState(false);
+  const [generatedStructure, setGeneratedStructure] = useState<any>(null);
+
   // Course Edit/Delete State
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', description: '', difficulty: '', price: 0, imageUrl: '' });
@@ -129,10 +133,39 @@ export default function AdminCourseDetailPage() {
     fileInputRef.current?.click();
   };
 
+  const handleStructureGen = () => {
+    setPendingTopicId('STRUCTURE_GEN');
+    fileInputRef.current?.click();
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !pendingTopicId) return;
     const topicId = pendingTopicId;
+
+    if (topicId === 'STRUCTURE_GEN') {
+      setProcessingStructure(true);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch(`${AI_SERVICE_URL}/process/course-structure`, {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Processing failed');
+        setGeneratedStructure(data);
+        setShowStructurePreview(true);
+      } catch (e: any) {
+        setError('Structure Gen failed: ' + e.message);
+      } finally {
+        setProcessingStructure(false);
+        setPendingTopicId(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+      return;
+    }
+
     setUploadingTopic(topicId);
     setUploadStatus((prev) => ({ ...prev, [topicId]: 'Uploading...' }));
     try {
@@ -151,6 +184,20 @@ export default function AdminCourseDetailPage() {
       setUploadingTopic(null);
       setPendingTopicId(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleApplyStructure = async () => {
+    if (!generatedStructure) return;
+    setProcessingStructure(true);
+    try {
+      await api.autoStructureCourse(id, generatedStructure);
+      setShowStructurePreview(false);
+      await loadCourse();
+    } catch (e: any) {
+      setError('Failed to apply structure: ' + e.message);
+    } finally {
+      setProcessingStructure(false);
     }
   };
 
@@ -215,6 +262,16 @@ export default function AdminCourseDetailPage() {
         {/* Course Header */}
         <div className="mb-10 flex justify-between items-start">
           <div className="flex-1">
+            <div className="flex items-center gap-4 mb-4">
+              <button
+                onClick={handleStructureGen}
+                disabled={processingStructure}
+                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-emerald-500 text-white px-5 py-3 rounded-2xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-200 disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-[18px]">auto_fix_high</span>
+                {processingStructure ? 'Analyzing PDF...' : 'Generate from PDF'}
+              </button>
+            </div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-4xl font-bold text-black tracking-tight">{course?.title}</h1>
               <button
@@ -365,6 +422,67 @@ export default function AdminCourseDetailPage() {
           )}
         </div>
       </main>
+
+      {/* Structure Preview Modal */}
+      {showStructurePreview && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+          <div className="bg-white rounded-[2rem] w-full max-w-2xl shadow-2xl border border-white/60 overflow-hidden">
+            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <div>
+                <h2 className="text-xl font-bold text-black">Generated Course Structure</h2>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Review before applying</p>
+              </div>
+              <button onClick={() => setShowStructurePreview(false)} className="text-slate-400 hover:text-black">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div className="px-8 py-6 max-h-[60vh] overflow-y-auto space-y-6">
+              {generatedStructure?.modules.map((mod: any, mIdx: number) => (
+                <div key={mIdx} className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 bg-black rounded-lg flex items-center justify-center text-[10px] font-bold text-white">{mIdx+1}</div>
+                    <h4 className="font-bold text-slate-900">{mod.title}</h4>
+                  </div>
+                  <div className="ml-9 space-y-2">
+                    {mod.topics.map((top: any, tIdx: number) => (
+                      <div key={tIdx} className="flex items-start gap-2">
+                        <span className="text-[10px] text-slate-400 mt-1">•</span>
+                        <div>
+                          <p className="text-sm font-medium text-slate-700">{top.title}</p>
+                          <p className="text-[10px] text-slate-500 italic">{top.content_summary}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="px-8 py-6 bg-slate-50 border-t border-slate-100">
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 flex gap-3 items-start">
+                <span className="material-symbols-outlined text-amber-500 text-sm">warning</span>
+                <p className="text-[10px] text-amber-800 font-bold leading-relaxed">
+                  CRITICAL: Applying this structure will DELETE all existing modules, topics, content, and student progress for this course. This action cannot be undone.
+                </p>
+              </div>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowStructurePreview(false)}
+                  className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 border border-slate-200 rounded-2xl hover:bg-white transition-all"
+                >
+                  Discard
+                </button>
+                <button
+                  onClick={handleApplyStructure}
+                  disabled={processingStructure}
+                  className="flex-1 py-4 text-[10px] font-black uppercase tracking-widest bg-black text-white rounded-2xl hover:shadow-xl transition-all disabled:opacity-50"
+                >
+                  {processingStructure ? 'Applying...' : 'Apply Structure'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Course Modal */}
       {showEditModal && (
