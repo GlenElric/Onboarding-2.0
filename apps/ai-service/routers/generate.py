@@ -20,7 +20,7 @@ class ChatRequest(BaseModel):
 @router.post("/chat")
 async def generate_chat(request: ChatRequest):
     """
-    RAG-based chat using provided context chunks.
+    RAG-based chat using provided context chunks using gpt-4o-mini.
     """
     if not request.context:
         return {"answer": "I don't have any specific content for this topic yet. How can I help you generally?", "citations": []}
@@ -46,7 +46,7 @@ async def generate_chat(request: ChatRequest):
 
     try:
         response = openai_client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             response_format={ "type": "json_object" },
             messages=[
                 {"role": "system", "content": prompt}
@@ -64,7 +64,8 @@ async def generate_chat(request: ChatRequest):
 @router.post("/quiz")
 async def generate_quiz(topicId: str = Query(...)):
     """
-    Generate structured MCQs from topic content chunks.
+    Generate structured MCQs from topic content chunks using gpt-4o-mini.
+    Generates a pool of 20 questions to allow for random selection.
     """
     # 1. Fetch chunks from NestJS API
     API_SERVICE_URL = os.getenv("API_SERVICE_URL", "http://localhost:3001")
@@ -88,8 +89,9 @@ async def generate_quiz(topicId: str = Query(...)):
 
     prompt = f"""
     You are an AI Assessment Generator.
-    Based on the following content, generate 10 Multiple Choice Questions (MCQs).
+    Based on the following content, generate 20 Multiple Choice Questions (MCQs).
     Each question should have 4 options and exactly one correct answer.
+    Ensure questions test the knowledge thoroughly and vary in difficulty.
 
     CONTENT:
     {context}
@@ -102,7 +104,8 @@ async def generate_quiz(topicId: str = Query(...)):
           "options": [
             {{ "text": "option 1", "isCorrect": true }},
             {{ "text": "option 2", "isCorrect": false }},
-            ...
+            {{ "text": "option 3", "isCorrect": false }},
+            {{ "text": "option 4", "isCorrect": false }}
           ]
         }},
         ...
@@ -112,7 +115,7 @@ async def generate_quiz(topicId: str = Query(...)):
 
     try:
         response = openai_client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             response_format={ "type": "json_object" },
             messages=[
                 {"role": "system", "content": prompt}

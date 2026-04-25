@@ -2,7 +2,7 @@ import { Injectable, ForbiddenException, NotFoundException, Logger } from '@nest
 import { OrganizationRepository } from '../../repositories/organization.repository';
 import { UserRepository } from '../../repositories/user.repository';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateOrganizationDto, AddMemberDto } from './dto/organization.dto';
+import { CreateOrganizationDto, AddMemberDto, AssignCourseDto } from './dto/organization.dto';
 import { OrgRole } from '@prisma/client';
 
 @Injectable()
@@ -79,6 +79,25 @@ export class OrganizationsService {
     }
 
     return org;
+  }
+
+  async assignCourseToMember(orgId: string, data: AssignCourseDto) {
+    this.logger.log(`Assigning course ${data.courseId} to user ${data.userId} in org ${orgId}`);
+
+    // Create enrollment regardless of visibility because it's an admin assignment
+    return this.prisma.courseEnrollment.upsert({
+      where: {
+        userId_courseId: {
+          userId: data.userId,
+          courseId: data.courseId,
+        },
+      },
+      update: {}, // Already enrolled, do nothing
+      create: {
+        userId: data.userId,
+        courseId: data.courseId,
+      },
+    });
   }
 
   async checkAccess(userId: string, orgId: string, roles: OrgRole[]) {

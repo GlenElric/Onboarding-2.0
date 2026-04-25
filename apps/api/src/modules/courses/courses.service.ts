@@ -97,14 +97,14 @@ export class CoursesService {
   }
 
   async getTopicWithContent(topicId: string) {
-    const topic = await this.topicRepository.findUnique({
+    const topic = (await this.topicRepository.findUnique({
       where: { id: topicId },
       include: {
         contentChunks: { orderBy: { order: 'asc' } },
         materials: { orderBy: { version: 'desc' } },
         questions: { include: { options: { select: { id: true, text: true } } } },
       },
-    });
+    })) as any;
     if (!topic) throw new NotFoundException('Topic not found');
     
     // Sanitize chunks on the fly to prevent downstream JSON parsing errors in AI service
@@ -187,6 +187,70 @@ export class CoursesService {
     await this.prisma.question.deleteMany({ where: { topicId } });
     
     return this.prisma.topic.delete({ where: { id: topicId } });
+  }
+
+  async autoStructureCourse(id: string, structure: any) {
+    this.logger.log(`Auto-structuring course: ${id}`);
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Clear existing structure
+      const modules = await tx.module.findMany({ where: { courseId: id } });
+      const moduleIds = modules.map(m => m.id);
+      const topics = await tx.topic.findMany({ where: { moduleId: { in: moduleIds } } });
+      const topicIds = topics.map(t => t.id);
+
+      if (topicIds.length > 0) {
+        await tx.contentChunk.deleteMany({ where: { topicId: { in: topicIds } } });
+        await tx.material.deleteMany({ where: { topicId: { in: topicIds } } });
+        await tx.topicProgress.deleteMany({ where: { topicId: { in: topicIds } } });
+        await tx.quizAttempt.deleteMany({ where: { topicId: { in: topicIds } } });
+        await tx.studySession.deleteMany({ where: { topicId: { in: topicIds } } });
+
+        const questions = await tx.question.findMany({ where: { topicId: { in: topicIds } } });
+        const questionIds = questions.map(q => q.id);
+        if (questionIds.length > 0) {
+          await tx.learnerAnswer.deleteMany({ where: { questionId: { in: questionIds } } });
+          await tx.questionOption.deleteMany({ where: { questionId: { in: questionIds } } });
+          await tx.question.deleteMany({ where: { topicId: { in: topicIds } } });
+        }
+        await tx.topic.deleteMany({ where: { id: { in: topicIds } } });
+      }
+      await tx.module.deleteMany({ where: { courseId: id } });
+
+      // 2. Create new structure
+      for (const [mIdx, modData] of structure.modules.entries()) {
+        const createdModule = await tx.module.create({
+          data: {
+            title: modData.title,
+            order: mIdx + 1,
+            courseId: id
+          }
+        });
+
+        for (const [tIdx, topicData] of modData.topics.entries()) {
+          const createdTopic = await tx.topic.create({
+            data: {
+              title: topicData.title,
+              order: tIdx + 1,
+              moduleId: createdModule.id
+            }
+          });
+
+          // If AI provided a summary, seed it as the first content chunk
+          if (topicData.content_summary) {
+            await tx.contentChunk.create({
+              data: {
+                topicId: createdTopic.id,
+                content: topicData.content_summary,
+                order: 0
+              }
+            });
+          }
+        }
+      }
+
+      return { message: 'Course structure auto-generated successfully' };
+    });
   }
 
   async delete(id: string) {

@@ -77,6 +77,15 @@ export const api = {
   deleteTopic: (topicId: string) =>
     apiFetch<any>(`/courses/topics/${topicId}`, { method: 'DELETE' }),
 
+  autoStructureCourse: (courseId: string, structure: any) =>
+    apiFetch<any>(`/courses/${courseId}/auto-structure`, { method: 'POST', body: JSON.stringify(structure) }),
+
+  // Organizations
+  getOrganizations: () => apiFetch<any[]>('/organizations/my'),
+  getOrganization: (id: string) => apiFetch<any>(`/organizations/${id}`),
+  assignCourse: (orgId: string, data: { userId: string; courseId: string }) =>
+    apiFetch<any>(`/organizations/${orgId}/courses/assign`, { method: 'POST', body: JSON.stringify(data) }),
+
   // AI Tutor Chat
   chatWithTutor: async (context: string, message: string) => {
     const AI_URL = process.env.NEXT_PUBLIC_AI_URL || 'http://127.0.0.1:8000';

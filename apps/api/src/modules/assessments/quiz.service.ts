@@ -72,7 +72,10 @@ export class QuizService {
         },
       },
     });
-    return questions;
+
+    // Shuffle and pick 10 questions to test knowledge randomly
+    const shuffled = questions.sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, 10);
   }
 
   async submitQuiz(userId: string, topicId: string, answers: Array<{ questionId: string; selectedOptionId: string }>) {
