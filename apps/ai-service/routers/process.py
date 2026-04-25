@@ -21,6 +21,9 @@ def extract_text_from_pdf(file_bytes: bytes) -> str:
     text = ""
     for page in reader.pages:
         text += page.extract_text() or ""
+    # Clean control characters except common ones like \n and \t
+    import re
+    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\xff]', '', text)
     return text
 
 

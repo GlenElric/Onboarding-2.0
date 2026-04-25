@@ -52,12 +52,14 @@ async def generate_chat(request: ChatRequest):
                 {"role": "system", "content": prompt}
             ]
         )
-        return json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content
+        # strict=False allows unescaped control characters like \n inside JSON strings
+        return json.loads(content, strict=False)
     except Exception as e:
         print(f"CHAT ERROR: {str(e)}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"AI Response Parsing Error: {str(e)}")
 
 @router.post("/quiz")
 async def generate_quiz(topicId: str = Query(...)):
@@ -116,7 +118,8 @@ async def generate_quiz(topicId: str = Query(...)):
                 {"role": "system", "content": prompt}
             ]
         )
-        return json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content
+        return json.loads(content, strict=False)
     except Exception as e:
         print(f"QUIZ GEN ERROR: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Quiz Parsing Error: {str(e)}")

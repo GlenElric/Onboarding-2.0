@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Logger } from '@nestjs/common';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto, UpdateCourseDto } from './dto/course.dto';
 import { CreateModuleDto } from './dto/module.dto';
@@ -9,17 +9,22 @@ import { PlatformRole } from '@prisma/client';
 
 @Controller('courses')
 export class CoursesController {
+  private readonly logger = new Logger(CoursesController.name);
+
   constructor(private readonly coursesService: CoursesService) {}
 
   @Public()
   @Get()
   async findAll() {
-    return this.coursesService.findAll();
+    const courses = await this.coursesService.findAll();
+    this.logger.log(`GET /courses - Returning ${courses.length} courses. IDs: ${courses.map(c => c.id).join(', ')}`);
+    return courses;
   }
 
   @Public()
   @Get(':id')
   async findOne(@Param('id') id: string) {
+    this.logger.log(`GET /courses/${id} - Char codes: ${Array.from(id).map(c => c.charCodeAt(0)).join(',')}`);
     return this.coursesService.findOne(id);
   }
 
@@ -53,6 +58,7 @@ export class CoursesController {
 
   @Get('topics/:topicId')
   async getTopic(@Param('topicId') topicId: string) {
+    this.logger.log(`GET /courses/topics/${topicId}`);
     return this.coursesService.getTopicWithContent(topicId);
   }
 

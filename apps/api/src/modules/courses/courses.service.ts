@@ -106,6 +106,15 @@ export class CoursesService {
       },
     });
     if (!topic) throw new NotFoundException('Topic not found');
+    
+    // Sanitize chunks on the fly to prevent downstream JSON parsing errors in AI service
+    if (topic.contentChunks) {
+      topic.contentChunks = topic.contentChunks.map((chunk: any) => ({
+        ...chunk,
+        content: chunk.content ? chunk.content.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\xff]/g, '') : ''
+      })) as any;
+    }
+    
     return topic;
   }
 
@@ -127,10 +136,15 @@ export class CoursesService {
   }
 
   async getTopicChunks(topicId: string) {
-    return this.chunkRepository.findMany({
+    const chunks = await this.chunkRepository.findMany({
       where: { topicId },
       orderBy: { order: 'asc' },
     });
+    
+    return chunks.map(chunk => ({
+      ...chunk,
+      content: chunk.content ? chunk.content.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\xff]/g, '') : ''
+    }));
   }
 
   async addContentChunk(topicId: string, data: { content: string; order: number }) {

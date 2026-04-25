@@ -88,13 +88,19 @@ export const api = {
     const rawData = await res.text();
     // Aggressively strip ALL control characters (0-31 and 127-159) to prevent JSON.parse errors
     // This includes raw newlines and tabs that might be illegally present inside string values.
-    const data = rawData.replace(/[\x00-\x1F\x7F-\x9F]/g, "");
+    const data = rawData
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r")
+      .replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "");
 
     if (!res.ok) {
       let errDetail = 'Chat failed';
       try {
-        errDetail = JSON.parse(data).detail || errDetail;
-      } catch {}
+        const errJson = JSON.parse(data);
+        errDetail = errJson.detail || errJson.message || errDetail;
+      } catch {
+        errDetail = data.substring(0, 200) || errDetail;
+      }
       throw new Error(errDetail);
     }
     try {
