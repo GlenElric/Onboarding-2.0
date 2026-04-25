@@ -1,8 +1,5 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
-<<<<<<< HEAD
 import { PrismaService } from '../../prisma/prisma.service';
-=======
->>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
 import { CourseRepository } from '../../repositories/course.repository';
 import { ModuleRepository } from '../../repositories/module.repository';
 import { TopicRepository } from '../../repositories/topic.repository';
@@ -20,10 +17,7 @@ export class CoursesService {
     private readonly topicRepository: TopicRepository,
     private readonly chunkRepository: ContentChunkRepository,
     private readonly materialRepository: MaterialRepository,
-<<<<<<< HEAD
     private readonly prisma: PrismaService,
-=======
->>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
   ) {}
 
   async findAll() {
@@ -47,7 +41,7 @@ export class CoursesService {
           },
         },
       },
-    });
+    }) as any;
 
     if (!course) {
       throw new NotFoundException(`Course with ID ${id} not found`);
@@ -152,8 +146,6 @@ export class CoursesService {
   async deleteContentChunks(topicId: string) {
     return this.chunkRepository.deleteMany({ where: { topicId } });
   }
-<<<<<<< HEAD
-
   async deleteTopic(topicId: string) {
     this.logger.log(`Deleting topic: ${topicId}`);
     
@@ -182,6 +174,50 @@ export class CoursesService {
     
     return this.prisma.topic.delete({ where: { id: topicId } });
   }
-=======
->>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
+
+  async delete(id: string) {
+    this.logger.log(`Performing full cascade delete for course: ${id}`);
+    
+    const course = await this.courseRepository.findUnique({
+      where: { id },
+      include: {
+        modules: {
+          include: {
+            topics: true
+          }
+        }
+      }
+    }) as any;
+
+    if (!course) throw new NotFoundException('Course not found');
+
+    // Extract all topic IDs for bulk deletion of related entities
+    const topicIds = course.modules.flatMap(m => m.topics.map(t => t.id));
+
+    await this.prisma.$transaction(async (tx) => {
+      if (topicIds.length > 0) {
+        await tx.contentChunk.deleteMany({ where: { topicId: { in: topicIds } } });
+        await tx.material.deleteMany({ where: { topicId: { in: topicIds } } });
+        await tx.topicProgress.deleteMany({ where: { topicId: { in: topicIds } } });
+        await tx.quizAttempt.deleteMany({ where: { topicId: { in: topicIds } } });
+        await tx.studySession.deleteMany({ where: { topicId: { in: topicIds } } });
+        
+        const questions = await tx.question.findMany({ where: { topicId: { in: topicIds } } });
+        const questionIds = questions.map(q => q.id);
+        if (questionIds.length > 0) {
+          await tx.learnerAnswer.deleteMany({ where: { questionId: { in: questionIds } } });
+          await tx.questionOption.deleteMany({ where: { questionId: { in: questionIds } } });
+          await tx.question.deleteMany({ where: { topicId: { in: topicIds } } });
+        }
+        await tx.topic.deleteMany({ where: { id: { in: topicIds } } });
+      }
+
+      await tx.module.deleteMany({ where: { courseId: id } });
+      await tx.courseEnrollment.deleteMany({ where: { courseId: id } });
+      await tx.payment.deleteMany({ where: { courseId: id } });
+      await tx.course.delete({ where: { id } });
+    });
+
+    return { message: 'Course and all related data deleted successfully' };
+  }
 }

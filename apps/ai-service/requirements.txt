@@ -2,7 +2,7 @@ fastapi
 uvicorn
 python-multipart
 pypdf2
-google-generativeai
+openai
 python-dotenv
 requests
 httpx

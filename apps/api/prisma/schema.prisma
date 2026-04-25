@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 enum PlatformRole {
@@ -22,17 +22,7 @@ enum OrgRole {
   LEARNER
 }
 
-enum PlatformRole {
-  PLATFORM_ADMIN
-  USER
-}
-
-enum OrgRole {
-  ORG_ADMIN
-  MANAGER
-  MENTOR
-  LEARNER
-}
+// Enums are already defined above
 
 model User {
   id            String         @id @default(uuid())
@@ -133,6 +123,7 @@ model Topic {
   contentChunks ContentChunk[]
   questions     Question[]
   progress      TopicProgress[]
+  quizAttempts  QuizAttempt[]
 }
 
 model Material {
@@ -209,6 +200,7 @@ model QuizAttempt {
   passed    Boolean?
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
+  topic     Topic    @relation(fields: [topicId], references: [id])
   answers   LearnerAnswer[]
 }
 

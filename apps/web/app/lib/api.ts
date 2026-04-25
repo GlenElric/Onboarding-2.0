@@ -45,6 +45,8 @@ export const api = {
     apiFetch<any>('/courses', { method: 'POST', body: JSON.stringify(data) }),
   updateCourse: (id: string, data: any) =>
     apiFetch<any>(`/courses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteCourse: (id: string) =>
+    apiFetch<any>(`/courses/${id}`, { method: 'DELETE' }),
   addModule: (courseId: string, data: any) =>
     apiFetch<any>(`/courses/${courseId}/modules`, { method: 'POST', body: JSON.stringify(data) }),
   addTopic: (moduleId: string, data: any) =>
@@ -61,17 +63,46 @@ export const api = {
     apiFetch<any>(`/enrollments/topics/${topicId}/complete`, { method: 'POST' }),
 
   // Quiz
-  getQuiz: (topicId: string) => apiFetch<any[]>(`/quiz/${topicId}`),
+  getQuiz: (topicId: string) => apiFetch<any[]>(`/quizzes/topic/${topicId}`),
   submitQuiz: (topicId: string, answers: any[]) =>
-    apiFetch<any>(`/quiz/${topicId}/submit`, {
+    apiFetch<any>(`/quizzes/topic/${topicId}/submit`, {
       method: 'POST',
       body: JSON.stringify({ answers }),
     }),
-  getQuizHistory: (topicId: string) => apiFetch<any[]>(`/quiz/${topicId}/history`),
+  getQuizHistory: (topicId: string) => apiFetch<any[]>(`/quizzes/topic/${topicId}/history`),
   generateQuiz: (topicId: string) =>
-    apiFetch<any>(`/quiz/generate/${topicId}`, { method: 'POST' }),
+    apiFetch<any>(`/quizzes/topic/${topicId}/generate`, { method: 'POST' }),
 
   // Topics
   deleteTopic: (topicId: string) =>
     apiFetch<any>(`/courses/topics/${topicId}`, { method: 'DELETE' }),
+
+  // AI Tutor Chat
+  chatWithTutor: async (context: string, message: string) => {
+    const AI_URL = process.env.NEXT_PUBLIC_AI_URL || 'http://127.0.0.1:8000';
+    const res = await fetch(`${AI_URL}/generate/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context, message })
+    });
+    const rawData = await res.text();
+    // Aggressively strip ALL control characters (0-31 and 127-159) to prevent JSON.parse errors
+    // This includes raw newlines and tabs that might be illegally present inside string values.
+    const data = rawData.replace(/[\x00-\x1F\x7F-\x9F]/g, "");
+
+    if (!res.ok) {
+      let errDetail = 'Chat failed';
+      try {
+        errDetail = JSON.parse(data).detail || errDetail;
+      } catch {}
+      throw new Error(errDetail);
+    }
+    try {
+      console.log('DEBUG: Final data to parse:', data);
+      return JSON.parse(data);
+    } catch (e: any) {
+      console.error('DEBUG: JSON Parse Final Error:', e.message, 'Data snippet:', data.substring(0, 100));
+      return { answer: data, citations: [] };
+    }
+  },
 };

@@ -4,6 +4,8 @@ import { CreateCourseDto, UpdateCourseDto } from './dto/course.dto';
 import { CreateModuleDto } from './dto/module.dto';
 import { CreateTopicDto, CreateChunkDto } from './dto/topic.dto';
 import { Public } from '../auth/public.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { PlatformRole } from '@prisma/client';
 
 @Controller('courses')
 export class CoursesController {
@@ -21,14 +23,22 @@ export class CoursesController {
     return this.coursesService.findOne(id);
   }
 
+  @Roles(PlatformRole.PLATFORM_ADMIN)
   @Post()
   async create(@Body() createCourseDto: CreateCourseDto) {
     return this.coursesService.create(createCourseDto);
   }
 
+  @Roles(PlatformRole.PLATFORM_ADMIN)
   @Put(':id')
   async update(@Param('id') id: string, @Body() updateCourseDto: UpdateCourseDto) {
     return this.coursesService.update(id, updateCourseDto);
+  }
+
+  @Roles(PlatformRole.PLATFORM_ADMIN)
+  @Delete(':id')
+  async delete(@Param('id') id: string) {
+    return this.coursesService.delete(id);
   }
 
   @Post(':id/modules')
@@ -46,6 +56,7 @@ export class CoursesController {
     return this.coursesService.getTopicWithContent(topicId);
   }
 
+  @Public()
   @Get('topics/:topicId/chunks')
   async getChunks(@Param('topicId') topicId: string) {
     return this.coursesService.getTopicChunks(topicId);

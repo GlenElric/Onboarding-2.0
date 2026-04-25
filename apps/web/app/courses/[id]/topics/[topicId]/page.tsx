@@ -17,11 +17,20 @@ export default function TopicPage() {
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState('');
+  const [quizError, setQuizError] = useState('');
 
   // Quiz state
   const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [quizScore, setQuizScore] = useState<{ score: number, passed: boolean } | null>(null);
+  const [generatingQuiz, setGeneratingQuiz] = useState(false);
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<{role: string, content: string}[]>([
+    { role: 'ai', content: "Hi! I'm your AI Tutor. Ask me any questions about this lesson!" }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -70,6 +79,41 @@ export default function TopicPage() {
     }
   };
 
+  const handleGenerateQuiz = async () => {
+    setGeneratingQuiz(true);
+    try {
+      setQuizError('');
+      await api.generateQuiz(topicId);
+      // Refresh topic to get the quiz
+      const updatedTopic = await api.getTopic(topicId);
+      setTopic(updatedTopic);
+    } catch (err: any) {
+      setQuizError(err.message || 'Failed to generate quiz');
+    } finally {
+      setGeneratingQuiz(false);
+    }
+  };
+
+  const handleChatSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || chatLoading) return;
+    const userMsg = chatInput.trim();
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    setChatLoading(true);
+
+    try {
+      const context = topic.contentChunks?.map((c: any) => c.content).join('\n') || '';
+      const res = await api.chatWithTutor(context, userMsg);
+      setChatMessages(prev => [...prev, { role: 'ai', content: res.answer }]);
+    } catch (err) {
+      console.error(err);
+      setChatMessages(prev => [...prev, { role: 'ai', content: 'Sorry, I encountered an error answering your question.' }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface">
@@ -108,97 +152,175 @@ export default function TopicPage() {
         </div>
       </nav>
 
-      <main className="max-w-3xl mx-auto px-4 py-12">
-        <div className="bg-white/40 backdrop-blur-3xl border border-white/60 rounded-[2rem] p-8 md:p-12 shadow-[0_8px_32px_rgba(0,0,0,0.04)] mb-8">
-          <h2 className="text-3xl font-bold text-black tracking-tight mb-8 leading-tight">{topic.title}</h2>
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          <div className="prose prose-slate max-w-none text-slate-700 leading-relaxed space-y-6">
-            {topic.contentChunks?.length > 0 ? (
-              topic.contentChunks.map((chunk: any) => (
-                <div key={chunk.id} className="text-sm font-medium">
-                  {chunk.content.split('\n').map((paragraph: string, i: number) => (
-                    <p key={i} className="mb-4">{paragraph}</p>
-                  ))}
-                </div>
-              ))
-            ) : (
-              <p className="italic text-slate-400">No content available for this topic yet.</p>
-            )}
-          </div>
-        </div>
-
-        {hasQuiz && (
-          <div className="bg-white/40 backdrop-blur-3xl border border-white/60 rounded-[2rem] p-8 md:p-12 shadow-[0_8px_32px_rgba(0,0,0,0.04)] mb-8">
-            <div className="flex items-center gap-3 mb-8">
-              <span className="material-symbols-outlined text-black text-3xl">quiz</span>
-              <div>
-                <h3 className="text-xl font-bold text-black">Knowledge Check</h3>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Test your understanding</p>
+          {/* Left Column: Course Content */}
+          <div className="lg:col-span-8 space-y-8">
+            <div className="bg-white/40 backdrop-blur-3xl border border-white/60 rounded-[2rem] p-8 md:p-12 shadow-[0_8px_32px_rgba(0,0,0,0.04)]">
+              <h2 className="text-3xl font-bold text-black tracking-tight mb-8 leading-tight">{topic.title}</h2>
+              
+              <div className="prose prose-slate max-w-none text-slate-700 leading-relaxed space-y-6">
+                {topic.contentChunks?.length > 0 ? (
+                  topic.contentChunks.map((chunk: any) => (
+                    <div key={chunk.id} className="text-sm font-medium">
+                      {chunk.content.split('\n').map((paragraph: string, i: number) => (
+                        <p key={i} className="mb-4">{paragraph}</p>
+                      ))}
+                    </div>
+                  ))
+                ) : (
+                  <p className="italic text-slate-400">No content available for this topic yet.</p>
+                )}
               </div>
             </div>
 
-            <div className="space-y-8">
-              {topic.questions.map((q: any, idx: number) => (
-                <div key={q.id} className="space-y-4">
-                  <p className="font-bold text-black text-sm">
-                    {idx + 1}. {q.text}
-                  </p>
-                  <div className="space-y-2">
-                    {q.options.map((opt: any) => (
-                      <label 
-                        key={opt.id} 
-                        className={`flex items-center gap-3 p-4 rounded-2xl border transition-all cursor-pointer ${
-                          quizAnswers[q.id] === opt.id 
-                            ? 'bg-black/5 border-black/20' 
-                            : 'bg-white/50 border-white/60 hover:bg-white/80'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name={`question-${q.id}`}
-                          value={opt.id}
-                          checked={quizAnswers[q.id] === opt.id}
-                          onChange={() => setQuizAnswers(prev => ({ ...prev, [q.id]: opt.id }))}
-                          disabled={quizSubmitted}
-                          className="w-4 h-4 text-black border-slate-300 focus:ring-black/20"
-                        />
-                        <span className="text-sm font-medium text-slate-700">{opt.text}</span>
-                      </label>
-                    ))}
+            {hasQuiz ? (
+              <div className="bg-white/40 backdrop-blur-3xl border border-white/60 rounded-[2rem] p-8 md:p-12 shadow-[0_8px_32px_rgba(0,0,0,0.04)]">
+                <div className="flex items-center gap-3 mb-8">
+                  <span className="material-symbols-outlined text-black text-3xl">quiz</span>
+                  <div>
+                    <h3 className="text-xl font-bold text-black">Knowledge Check</h3>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Test your understanding</p>
                   </div>
                 </div>
-              ))}
-            </div>
 
-            {quizSubmitted && quizScore ? (
-              <div className={`mt-8 p-6 rounded-2xl border ${quizScore.passed ? 'bg-emerald-50/50 border-emerald-200/50 text-emerald-800' : 'bg-red-50/50 border-red-200/50 text-red-800'}`}>
-                <h4 className="font-bold text-lg mb-1">{quizScore.passed ? 'Great job!' : 'Keep trying!'}</h4>
-                <p className="text-sm font-medium">You scored {quizScore.score.toFixed(0)}%.</p>
+                <div className="space-y-8">
+                  {topic.questions.map((q: any, idx: number) => (
+                    <div key={q.id} className="space-y-4">
+                      <p className="font-bold text-black text-sm">
+                        {idx + 1}. {q.text}
+                      </p>
+                      <div className="space-y-2">
+                        {q.options.map((opt: any) => (
+                          <label 
+                            key={opt.id} 
+                            className={`flex items-center gap-3 p-4 rounded-2xl border transition-all cursor-pointer ${
+                              quizAnswers[q.id] === opt.id 
+                                ? 'bg-black/5 border-black/20' 
+                                : 'bg-white/50 border-white/60 hover:bg-white/80'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name={`question-${q.id}`}
+                              value={opt.id}
+                              checked={quizAnswers[q.id] === opt.id}
+                              onChange={() => setQuizAnswers(prev => ({ ...prev, [q.id]: opt.id }))}
+                              disabled={quizSubmitted}
+                              className="w-4 h-4 text-black border-slate-300 focus:ring-black/20"
+                            />
+                            <span className="text-sm font-medium text-slate-700">{opt.text}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {quizSubmitted && quizScore ? (
+                  <div className={`mt-8 p-6 rounded-2xl border ${quizScore.passed ? 'bg-emerald-50/50 border-emerald-200/50 text-emerald-800' : 'bg-red-50/50 border-red-200/50 text-red-800'}`}>
+                    <h4 className="font-bold text-lg mb-1">{quizScore.passed ? 'Great job!' : 'Keep trying!'}</h4>
+                    <p className="text-sm font-medium">You scored {quizScore.score.toFixed(0)}%.</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleQuizSubmit}
+                    disabled={!allQuestionsAnswered || quizSubmitted}
+                    className="mt-8 w-full bg-black text-white py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:shadow-xl transition-all disabled:opacity-40"
+                  >
+                    Submit Answers
+                  </button>
+                )}
               </div>
             ) : (
-              <button
-                onClick={handleQuizSubmit}
-                disabled={!allQuestionsAnswered || quizSubmitted}
-                className="mt-8 w-full bg-black text-white py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:shadow-xl transition-all disabled:opacity-40"
-              >
-                Submit Answers
-              </button>
+              <div className="bg-white/40 backdrop-blur-3xl border border-white/60 rounded-[2rem] p-8 md:p-12 shadow-[0_8px_32px_rgba(0,0,0,0.04)] text-center">
+                <span className="material-symbols-outlined text-4xl text-slate-400 mb-4 block">neurology</span>
+                <h3 className="text-xl font-bold text-black mb-2">Ready for a Quiz?</h3>
+                <p className="text-sm text-slate-500 mb-6 font-medium">Have our AI generate a short quiz to test your understanding of this lesson.</p>
+                {quizError && <p className="text-red-500 text-xs mb-4 font-bold">{quizError}</p>}
+                <button
+                  onClick={handleGenerateQuiz}
+                  disabled={generatingQuiz || !topic.contentChunks?.length}
+                  className="bg-black text-white px-8 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] hover:shadow-xl transition-all disabled:opacity-50"
+                >
+                  {generatingQuiz ? 'Generating AI Quiz...' : 'Generate Practice Quiz'}
+                </button>
+              </div>
             )}
-          </div>
-        )}
 
-        <div className="flex justify-between items-center mt-12 pt-8 border-t border-black/5">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-            {topic.materials?.length > 0 ? `${topic.materials.length} reference files available` : ''}
-          </span>
-          <button
-            onClick={handleComplete}
-            disabled={completing || (hasQuiz && (!quizSubmitted || !quizScore?.passed))}
-            className="bg-black text-white px-8 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center gap-2 hover:shadow-2xl hover:-translate-y-0.5 transition-all shadow-xl disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
-          >
-            {completing ? 'Completing...' : 'Complete & Continue'}
-            <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-          </button>
+            <div className="flex justify-between items-center pt-4 pb-12">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                {topic.materials?.length > 0 ? `${topic.materials.length} reference files available` : ''}
+              </span>
+              <button
+                onClick={handleComplete}
+                disabled={completing || (hasQuiz && (!quizSubmitted || !quizScore?.passed))}
+                className="bg-black text-white px-8 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] flex items-center gap-2 hover:shadow-2xl hover:-translate-y-0.5 transition-all shadow-xl disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+              >
+                {completing ? 'Completing...' : 'Complete & Continue'}
+                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Right Column: AI Chat Interface */}
+          <div className="lg:col-span-4 sticky top-28 h-[calc(100vh-8rem)]">
+            <div className="bg-white/40 backdrop-blur-3xl border border-white/60 rounded-[2rem] shadow-[0_8px_32px_rgba(0,0,0,0.04)] h-full flex flex-col overflow-hidden">
+              <div className="p-6 border-b border-black/5 flex items-center gap-4 bg-white/30">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-md">
+                  <span className="material-symbols-outlined text-[20px]">smart_toy</span>
+                </div>
+                <div>
+                  <h3 className="font-bold text-black text-sm">AI Tutor</h3>
+                  <p className="text-[9px] uppercase tracking-widest font-bold text-slate-500">Lesson Context Enabled</p>
+                </div>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {chatMessages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] rounded-2xl p-4 text-sm font-medium leading-relaxed ${
+                      msg.role === 'user' 
+                        ? 'bg-black text-white rounded-tr-sm' 
+                        : 'bg-white/80 border border-white text-slate-700 rounded-tl-sm shadow-sm'
+                    }`}>
+                      {msg.content}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[85%] rounded-2xl rounded-tl-sm p-4 bg-white/80 border border-white shadow-sm flex gap-1">
+                      <div className="w-2 h-2 bg-black/40 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-black/40 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-2 h-2 bg-black/40 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 bg-white/30 border-t border-black/5">
+                <form onSubmit={handleChatSubmit} className="relative">
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder="Ask about this lesson..."
+                    className="w-full bg-white/60 border border-white focus:border-black/20 focus:ring-4 focus:ring-black/5 rounded-xl py-4 pl-5 pr-14 text-sm font-medium text-black placeholder:text-slate-400 transition-all outline-none"
+                  />
+                  <button 
+                    type="submit" 
+                    disabled={chatLoading || !chatInput.trim()}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-black text-white rounded-lg hover:bg-black/80 disabled:opacity-50 transition-all"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">send</span>
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+
         </div>
       </main>
     </div>

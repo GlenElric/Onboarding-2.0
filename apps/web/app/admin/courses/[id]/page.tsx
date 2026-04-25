@@ -28,6 +28,12 @@ export default function AdminCourseDetailPage() {
   const [quizStatus, setQuizStatus] = useState<Record<string, string>>({});
   const [deletingTopic, setDeletingTopic] = useState<string | null>(null);
 
+  // Course Edit/Delete State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ title: '', description: '', difficulty: '', price: 0, imageUrl: '' });
+  const [savingCourse, setSavingCourse] = useState(false);
+  const [deletingCourse, setDeletingCourse] = useState(false);
+
   useEffect(() => {
     if (!isLoading && user?.role !== 'PLATFORM_ADMIN') router.push('/');
   }, [user, isLoading, router]);
@@ -36,6 +42,13 @@ export default function AdminCourseDetailPage() {
     try {
       const data = await api.getCourse(id);
       setCourse(data);
+      setEditForm({
+        title: data.title,
+        description: data.description || '',
+        difficulty: data.difficulty,
+        price: data.price || 0,
+        imageUrl: data.imageUrl || '',
+      });
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -82,6 +95,32 @@ export default function AdminCourseDetailPage() {
       setError(e.message);
     } finally {
       setDeletingTopic(null);
+    }
+  };
+
+  const handleUpdateCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingCourse(true);
+    try {
+      await api.updateCourse(id, editForm);
+      setShowEditModal(false);
+      await loadCourse();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSavingCourse(false);
+    }
+  };
+
+  const handleDeleteCourse = async () => {
+    if (!confirm('CRITICAL: Are you sure you want to delete this entire course? This action is IRREVERSIBLE and will delete all modules, topics, student progress, and payments.')) return;
+    setDeletingCourse(true);
+    try {
+      await api.deleteCourse(id);
+      router.push('/admin/courses');
+    } catch (e: any) {
+      setError(e.message);
+      setDeletingCourse(false);
     }
   };
 
@@ -174,9 +213,28 @@ export default function AdminCourseDetailPage() {
 
       <main className="max-w-5xl mx-auto px-4 py-12">
         {/* Course Header */}
-        <div className="mb-10">
-          <h1 className="text-4xl font-bold text-black tracking-tight mb-2">{course?.title}</h1>
-          <p className="text-slate-500 font-medium text-sm max-w-2xl">{course?.description}</p>
+        <div className="mb-10 flex justify-between items-start">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-4xl font-bold text-black tracking-tight">{course?.title}</h1>
+              <button
+                onClick={() => setShowEditModal(true)}
+                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center transition-colors text-slate-400 hover:text-black"
+                title="Edit Course Details"
+              >
+                <span className="material-symbols-outlined text-[20px]">edit</span>
+              </button>
+            </div>
+            <p className="text-slate-500 font-medium text-sm max-w-2xl">{course?.description}</p>
+          </div>
+          <button
+            onClick={handleDeleteCourse}
+            disabled={deletingCourse}
+            className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-red-500 border border-red-200/50 px-5 py-3 rounded-2xl hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-sm"
+          >
+            <span className="material-symbols-outlined text-[18px]">delete_forever</span>
+            {deletingCourse ? 'Deleting...' : 'Delete Course'}
+          </button>
         </div>
 
         {error && (
@@ -307,6 +365,76 @@ export default function AdminCourseDetailPage() {
           )}
         </div>
       </main>
+
+      {/* Edit Course Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-6">
+          <div className="bg-white/80 backdrop-blur-3xl rounded-[2rem] w-full max-w-lg shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-white/60">
+            <div className="px-8 py-6 border-b border-white/40 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-black">Edit Course</h2>
+              <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-black transition-colors">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <form onSubmit={handleUpdateCourse} className="px-8 py-6 space-y-4">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Course Title</label>
+                <input
+                  type="text"
+                  value={editForm.title}
+                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                  required
+                  className="w-full px-5 py-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-md text-black focus:outline-none focus:ring-2 focus:ring-black/10 transition-all text-sm font-medium"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Description</label>
+                <textarea
+                  value={editForm.description}
+                  onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-5 py-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-md text-black focus:outline-none focus:ring-2 focus:ring-black/10 transition-all text-sm font-medium resize-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Difficulty</label>
+                  <select
+                    value={editForm.difficulty}
+                    onChange={(e) => setEditForm({ ...editForm, difficulty: e.target.value })}
+                    className="w-full px-5 py-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-md text-black focus:outline-none focus:ring-2 focus:ring-black/10 transition-all text-sm font-medium"
+                  >
+                    <option>Beginner</option>
+                    <option>Intermediate</option>
+                    <option>Advanced</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Price (INR)</label>
+                  <input
+                    type="number"
+                    value={editForm.price}
+                    onChange={(e) => setEditForm({ ...editForm, price: parseFloat(e.target.value) })}
+                    className="w-full px-5 py-4 rounded-2xl border border-white/60 bg-white/50 backdrop-blur-md text-black focus:outline-none focus:ring-2 focus:ring-black/10 transition-all text-sm font-medium"
+                  />
+                </div>
+              </div>
+              <div className="pt-2 flex gap-3">
+                <button type="button" onClick={() => setShowEditModal(false)} className="flex-1 border border-black/10 text-slate-500 py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-white/50 transition-all">
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingCourse}
+                  className="flex-1 bg-black text-white py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:shadow-xl transition-all disabled:opacity-60"
+                >
+                  {savingCourse ? 'Saving...' : 'Update Details'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

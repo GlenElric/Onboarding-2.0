@@ -8,7 +8,6 @@ import { PlatformRole } from '@prisma/client';
 export class QuizController {
   constructor(private readonly quizService: QuizService) {}
 
-  @Roles(PlatformRole.PLATFORM_ADMIN)
   @Post('topic/:topicId/generate')
   async generate(@Param('topicId') topicId: string) {
     return this.quizService.generateQuizForTopic(topicId);
@@ -21,11 +20,11 @@ export class QuizController {
 
   @Post('topic/:topicId/submit')
   async submit(@Req() req: any, @Param('topicId') topicId: string, @Body() data: SubmitQuizDto) {
-    return this.quizService.submitQuiz(req.user.id, topicId, data.answers);
+    return this.quizService.submitQuiz(req.user.userId, topicId, data.answers);
   }
 
   @Get('topic/:topicId/history')
   async getHistory(@Req() req: any, @Param('topicId') topicId: string) {
-    return this.quizService.getQuizHistory(req.user.id, topicId);
+    return this.quizService.getQuizHistory(req.user.userId, topicId);
   }
 }

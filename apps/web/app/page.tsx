@@ -72,11 +72,11 @@ export default function Dashboard() {
             {[
               { icon: 'dashboard', label: 'Home', active: true, href: '/' },
               { icon: 'auto_stories', label: 'My Learning', href: '/courses' },
-              { icon: 'edit_note', label: 'Course Builder', href: '/admin/courses' },
-              { icon: 'insights', label: 'Analytics', href: '#' },
-              { icon: 'group', label: 'Team Management', href: '#' },
+              { icon: 'edit_note', label: 'Course Builder', href: '/admin/courses', admin: true },
+              { icon: 'insights', label: 'Analytics', href: '#', admin: true },
+              { icon: 'group', label: 'Team Management', href: '#', admin: true },
               { icon: 'settings', label: 'Settings', href: '#' },
-            ].map((item) => (
+            ].filter(item => !item.admin || user?.role === 'PLATFORM_ADMIN').map((item) => (
               <Link key={item.label} href={item.href} className={`flex items-center gap-4 px-5 py-4 rounded-2xl cursor-pointer transition-all group ${item.active ? 'bg-black shadow-[0_8px_30px_rgba(0,0,0,0.12)] text-white' : 'hover:bg-white/40 text-slate-600 border border-transparent hover:border-white/50'}`}>
                 <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
                 <span className="text-[10px] uppercase tracking-[0.15em] font-bold">{item.label}</span>
@@ -220,9 +220,9 @@ export default function Dashboard() {
                 <div className="space-y-3">
                   {[
                     { icon: 'auto_stories', title: 'My Learning', detail: 'Continue where you left off', href: '/courses' },
-                    { icon: 'edit_note', title: 'Course Builder', detail: 'Create and manage courses', href: '/admin/courses' },
+                    { icon: 'edit_note', title: 'Course Builder', detail: 'Create and manage courses', href: '/admin/courses', admin: true },
                     { icon: 'quiz', title: 'Quizzes', detail: 'Test your knowledge', href: '/courses' },
-                  ].map((action, i) => (
+                  ].filter(action => !action.admin || user?.role === 'PLATFORM_ADMIN').map((action, i) => (
                     <Link key={i} href={action.href} className="flex gap-4 p-4 bg-white/30 backdrop-blur-xl rounded-[1.5rem] border border-white/50 transition-all hover:bg-white/50 cursor-pointer group">
                       <div className="w-12 h-12 rounded-2xl bg-black/5 text-black flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105 border border-white/50">
                         <span className="material-symbols-outlined text-[18px] opacity-80">{action.icon}</span>

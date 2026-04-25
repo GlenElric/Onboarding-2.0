@@ -79,9 +79,9 @@ async def process_pdf(
 
     # Post chunks back to NestJS API
     if token:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient() as http_client:
             for idx, chunk in enumerate(chunks):
-                await client.post(
+                await http_client.post(
                     f"{API_SERVICE_URL}/courses/topics/{topicId}/chunks",
                     json={"content": chunk, "order": idx},
                     headers={"Authorization": f"Bearer {token}"},

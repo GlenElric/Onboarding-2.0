@@ -32,7 +32,6 @@ export class QuizService {
         options: Array<{ text: string; isCorrect: boolean }>;
       }> = response.data.questions;
 
-<<<<<<< HEAD
       // Atomic update: Delete old and insert new within a transaction (simulated here)
       const oldQuestions = await this.questionRepository.findMany({ where: { topicId } });
       for (const q of oldQuestions) {
@@ -52,39 +51,13 @@ export class QuizService {
           })),
         });
       }
-=======
-      // Atomic update: Delete old and insert new within a transaction
-      await this.prisma.$transaction(async (tx) => {
-        // Optimized deletion: Single query for options using relation filter, and single query for questions
-        await tx.questionOption.deleteMany({
-          where: { question: { topicId } },
-        });
-        await tx.question.deleteMany({ where: { topicId } });
-
-        for (const q of questions) {
-          // Optimized creation: Use nested create to insert question and options in one operation
-          await tx.question.create({
-            data: {
-              text: q.text,
-              topicId,
-              options: {
-                create: q.options.map((o) => ({
-                  text: o.text,
-                  isCorrect: o.isCorrect,
-                })),
-              },
-            },
-          });
-        }
-      });
->>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
 
       this.logger.log(`Generated ${questions.length} questions for topic: ${topicId}`);
       return { message: 'Quiz generated', count: questions.length };
     } catch (e: any) {
-      this.logger.error(`AI service error during quiz generation: ${e.message}`);
+      this.logger.error(`AI service error during quiz generation: ${e.message}`, e.response?.data);
       throw new HttpException(
-        e.response?.data?.detail || 'AI service error',
+        e.response?.data?.detail || e.message || 'AI service error',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -110,21 +83,12 @@ export class QuizService {
 
     if (questions.length === 0) throw new NotFoundException('No questions found for this topic');
 
-<<<<<<< HEAD
-=======
-    // Performance optimization: O(1) lookup using a Map instead of O(N) find in a loop
-    const questionsMap = new Map(questions.map((q) => [q.id, q]));
 
->>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
     let correct = 0;
     const learnerAnswers: Array<{ questionId: string; selectedOption: string; isCorrect: boolean }> = [];
 
     for (const answer of answers) {
-<<<<<<< HEAD
       const question = questions.find((q) => q.id === answer.questionId);
-=======
-      const question = questionsMap.get(answer.questionId);
->>>>>>> 9f26dcfb01a1ac0abbcb0c4a05ebd7066e032a05
       if (!question) continue;
       const selectedOption = question.options.find((o: any) => o.id === answer.selectedOptionId);
       const isCorrect = selectedOption?.isCorrect ?? false;
@@ -139,20 +103,25 @@ export class QuizService {
     const score = (correct / questions.length) * 100;
     const passed = score >= 70; // 70% threshold
 
-    const attempt = await this.quizAttemptRepository.create({
-      data: {
-        userId,
-        topicId,
-        score,
-        passed,
-        answers: {
-          create: learnerAnswers,
+    try {
+      const attempt = await this.quizAttemptRepository.create({
+        data: {
+          userId,
+          topicId,
+          score,
+          passed,
+          answers: {
+            create: learnerAnswers,
+          },
         },
-      },
-    });
+      });
 
-    this.logger.log(`Quiz submitted by user ${userId}. Score: ${score}%, Passed: ${passed}`);
-    return { attemptId: attempt.id, score, passed, correct, total: questions.length };
+      this.logger.log(`Quiz submitted by user ${userId}. Score: ${score}%, Passed: ${passed}`);
+      return { attemptId: attempt.id, score, passed, correct, total: questions.length };
+    } catch (e: any) {
+      this.logger.error(`Quiz submission error for user ${userId}: ${e.message}`, e.stack);
+      throw new HttpException(e.message || 'Quiz submission failed', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   async getQuizHistory(userId: string, topicId: string) {

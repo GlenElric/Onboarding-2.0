@@ -1,16 +1,17 @@
 import os
+import json
 from fastapi import APIRouter, HTTPException, Query
 import httpx
 from pydantic import BaseModel
 from typing import List, Optional
-import google.generativeai as genai
+import openai
 from dotenv import load_dotenv
 
 load_dotenv()
 
 router = APIRouter()
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY", ""))
+openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY", ""))
 
 class ChatRequest(BaseModel):
     context: str
@@ -43,11 +44,19 @@ async def generate_chat(request: ChatRequest):
     }}
     """
 
-    model = genai.GenerativeModel('gemini-1.5-flash')
     try:
-        response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
-        return response.text
+        response = openai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            response_format={ "type": "json_object" },
+            messages=[
+                {"role": "system", "content": prompt}
+            ]
+        )
+        return json.loads(response.choices[0].message.content)
     except Exception as e:
+        print(f"CHAT ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/quiz")
@@ -58,12 +67,16 @@ async def generate_quiz(topicId: str = Query(...)):
     # 1. Fetch chunks from NestJS API
     API_SERVICE_URL = os.getenv("API_SERVICE_URL", "http://localhost:3001")
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient() as http_client:
         try:
-            # We assume internal communication doesn't always need full JWT for these tasks if secured by VPC
-            # or we could use a service token. For MVP, we'll try to fetch public chunks if allowed.
-            resp = await client.get(f"{API_SERVICE_URL}/courses/topics/{topicId}/chunks")
+            resp = await http_client.get(f"{API_SERVICE_URL}/courses/topics/{topicId}/chunks")
+            if resp.status_code != 200:
+                raise HTTPException(status_code=resp.status_code, detail=f"API Error: {resp.text}")
+            
             chunks = resp.json()
+            if not isinstance(chunks, list):
+                raise HTTPException(status_code=500, detail=f"Unexpected API response format: {str(chunks)}")
+                
             context = "\n\n".join([c['content'] for c in chunks])
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to fetch content from API: {str(e)}")
@@ -73,7 +86,7 @@ async def generate_quiz(topicId: str = Query(...)):
 
     prompt = f"""
     You are an AI Assessment Generator.
-    Based on the following content, generate 5 Multiple Choice Questions (MCQs).
+    Based on the following content, generate 10 Multiple Choice Questions (MCQs).
     Each question should have 4 options and exactly one correct answer.
 
     CONTENT:
@@ -95,9 +108,15 @@ async def generate_quiz(topicId: str = Query(...)):
     }}
     """
 
-    model = genai.GenerativeModel('gemini-1.5-flash')
     try:
-        response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
-        return response.text
+        response = openai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            response_format={ "type": "json_object" },
+            messages=[
+                {"role": "system", "content": prompt}
+            ]
+        )
+        return json.loads(response.choices[0].message.content)
     except Exception as e:
+        print(f"QUIZ GEN ERROR: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
